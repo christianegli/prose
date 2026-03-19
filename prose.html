@@ -217,8 +217,14 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
       <input class="fi" id="s-gh-branch" placeholder="main">
     </div>
     <div style="margin-bottom:22px">
+      <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--fg2);margin-bottom:14px">Auto-Commit</p>
+      <p style="font-size:12px;color:var(--fg2);margin-bottom:12px">Automatically push to GitHub while writing. Annotations queue and are dispatched only after a commit.</p>
+      <label>Auto-commit every (minutes, 0 = off)</label>
+      <input class="fi" id="s-ac-mins" type="number" min="0" max="120" placeholder="15">
+    </div>
+    <div style="margin-bottom:22px">
       <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--fg2);margin-bottom:14px">Atlas Integration</p>
-      <p style="font-size:12px;color:var(--fg2);margin-bottom:12px">Connect to Atlas via Telegram to send annotations for review.</p>
+      <p style="font-size:12px;color:var(--fg2);margin-bottom:12px">Annotations are sent to Atlas after each commit, with full document context and SHA so Atlas can fetch the exact version via GitHub and pass it to Quill.</p>
       <label>Telegram Bot Token</label>
       <input class="fi" id="s-tg-tok" type="password" placeholder="bot token">
       <label>Telegram Chat ID</label>
@@ -280,6 +286,7 @@ function init(){
   else newDoc(true);
   applyTheme();
   setInterval(()=>{if(S.dirty)saveDoc(true)},30000);
+  scheduleAutoCommit();
   ta.focus();
 }
 
@@ -297,10 +304,12 @@ function saveSettings(){
   S.cfg.ghRepo=document.getElementById('s-gh-repo').value.trim();
   S.cfg.ghPath=document.getElementById('s-gh-path').value.trim();
   S.cfg.ghBranch=document.getElementById('s-gh-branch').value.trim()||'main';
+  S.cfg.autoCommitMins=parseInt(document.getElementById('s-ac-mins').value)||0;
   S.cfg.tgTok=document.getElementById('s-tg-tok').value.trim();
   S.cfg.tgChat=document.getElementById('s-tg-chat').value.trim();
   localStorage.setItem('prose_cfg',JSON.stringify(S.cfg));
   closeMo('mo-settings');
+  scheduleAutoCommit();
   toast('Settings saved');
 }
 
@@ -721,15 +730,30 @@ function openSettings(){
   document.getElementById('s-gh-repo').value=S.cfg.ghRepo;
   document.getElementById('s-gh-path').value=S.cfg.ghPath;
   document.getElementById('s-gh-branch').value=S.cfg.ghBranch;
+  document.getElementById('s-ac-mins').value=S.cfg.autoCommitMins||0;
   document.getElementById('s-tg-tok').value=S.cfg.tgTok;
   document.getElementById('s-tg-chat').value=S.cfg.tgChat;
   openMo('mo-settings');
 }
+function commitNow(){closeMo('mo-ann');syncToGH(false);}
 
 /* ── GITHUB SYNC ── */
-async function syncToGH(){
-  if(!S.cfg.ghTok||!S.cfg.ghRepo||!S.cfg.ghPath){openSettings();toast('Configure GitHub first');return;}
-  dot('dirty'); toast('Syncing…');
+let _lastCommitSha='';
+let _annQueue=[]; // annotations waiting for next commit
+let _autoCommitTimer=null;
+
+function scheduleAutoCommit(){
+  clearTimeout(_autoCommitTimer);
+  const interval=(parseInt(S.cfg.autoCommitMins)||0)*60*1000;
+  if(interval>0) _autoCommitTimer=setTimeout(()=>{if(S.dirty)syncToGH(true);},interval);
+}
+
+async function syncToGH(auto){
+  if(!S.cfg.ghTok||!S.cfg.ghRepo||!S.cfg.ghPath){
+    if(!auto)openSettings();
+    toast('Configure GitHub first');return;
+  }
+  dot('dirty'); if(!auto)toast('Committing…'); else toast('Auto-committing…');
   const url=`https://api.github.com/repos/${S.cfg.ghRepo}/contents/${S.cfg.ghPath}`;
   const content=btoa(unescape(encodeURIComponent(ta.value)));
   let sha='';
@@ -738,13 +762,30 @@ async function syncToGH(){
     if(r.ok){const d=await r.json();sha=d.sha||'';}
   }catch(e){}
   try{
-    const body={message:`Update ${S.cfg.ghPath}`,content,branch:S.cfg.ghBranch};
+    const msg=auto?`Auto-commit: ${docTitle(ta.value)} [${new Date().toISOString().substring(0,16)}]`:`Update ${S.cfg.ghPath}`;
+    const body={message:msg,content,branch:S.cfg.ghBranch};
     if(sha)body.sha=sha;
     const r=await fetch(url,{method:'PUT',headers:{'Authorization':'token '+S.cfg.ghTok,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},body:JSON.stringify(body)});
-    if(r.ok){dot('ok');toast('Synced to GitHub ✓');}
-    else{const e=await r.json();dot('err');toast('Sync failed: '+(e.message||r.status));}
-  }catch(e){dot('err');toast('Sync error: '+e.message);}
+    if(r.ok){
+      const data=await r.json();
+      const commitSha=data.commit&&data.commit.sha?data.commit.sha.substring(0,8):'';
+      _lastCommitSha=commitSha;
+      dot('ok');
+      toast(auto?`Auto-committed ${commitSha}`:`Committed ${commitSha} ✓`);
+      S.dirty=false;
+      // flush annotation queue now that we have a commit
+      if(_annQueue.length){
+        const queued=[..._annQueue]; _annQueue=[];
+        for(const a of queued) await dispatchAnnToAtlas(a,commitSha);
+      }
+      scheduleAutoCommit();
+    } else {
+      const e=await r.json();dot('err');toast('Commit failed: '+(e.message||r.status));
+      scheduleAutoCommit();
+    }
+  }catch(e){dot('err');toast('Commit error: '+e.message);scheduleAutoCommit();}
 }
+
 async function pullFromGH(){
   if(!S.cfg.ghTok||!S.cfg.ghRepo||!S.cfg.ghPath){openSettings();toast('Configure GitHub first');return;}
   toast('Pulling…');
@@ -781,13 +822,19 @@ function saveAnn(sendToAtlas){
   if(!note){toast('Note cannot be empty');return;}
   const atlas=sendToAtlas||document.getElementById('ann-atlas-chk').checked;
   const id='ann_'+Date.now();
-  const ann={id,s:annStart,e:annEnd,quote:annQuote.substring(0,80),note,atlas,created:Date.now()};
+  const ann={id,s:annStart,e:annEnd,quote:annQuote.substring(0,80),note,atlas,atlasQueued:false,atlasSent:false,created:Date.now()};
   if(!S.anns[S.cur])S.anns[S.cur]=[];
   S.anns[S.cur].push(ann);
   saveAnns(); closeMo('mo-ann');
   updateOv(); renderAnnList();
-  if(atlas&&sendToAtlas)sendAnnToAtlas(ann);
-  toast(atlas&&sendToAtlas?'Sent to Atlas 🦉':'Annotation saved');
+  if(atlas){
+    // Queue for dispatch after next commit
+    ann.atlasQueued=true; saveAnns();
+    _annQueue.push(ann);
+    toast('Queued for Atlas — will send after next commit 🦉');
+  } else {
+    toast('Annotation saved');
+  }
 }
 function deleteAnn(id){
   if(!S.cur||!S.anns[S.cur])return;
@@ -798,17 +845,23 @@ function deleteAnn(id){
 function renderAnnList(){
   const anns=annForDoc();
   const el=document.getElementById('ap-list');
-  if(!anns.length){el.innerHTML='<p style="color:var(--fg3);font-size:13px">No annotations</p>';return;}
-  el.innerHTML=anns.map(a=>`
-    <div class="ai${a.atlas?' atlas':''}">
+  if(!anns.length){el.innerHTML='<p style="color:var(--fg3);font-size:13px">No annotations yet</p>';return;}
+  el.innerHTML=anns.map(a=>{
+    let status='';
+    if(a.atlasSent) status=`<span style="color:#059669;font-size:10px">✓ sent to Atlas${a.commitSha?' @ '+a.commitSha:''}</span>`;
+    else if(a.atlasQueued) status=`<span style="color:#fbbf24;font-size:10px">⏳ queued — sends after next commit</span>`;
+    return `<div class="ai${a.atlas?' atlas':''}">
       <div class="ai-q">"${esc(a.quote||'')}"</div>
       <div class="ai-n">${esc(a.note)}</div>
-      <div class="ai-m">${new Date(a.created).toLocaleDateString()}${a.atlas?' (sent to Atlas)':''}</div>
-      <div style="display:flex;gap:10px;margin-top:4px">
+      <div class="ai-m">${new Date(a.created).toLocaleDateString()}</div>
+      ${status?`<div style="margin-top:3px">${status}</div>`:''}
+      <div style="display:flex;gap:10px;margin-top:5px">
         <button class="ai-del" onclick="deleteAnn('${a.id}')">delete</button>
-        ${!a.atlas?`<button class="ai-del" style="color:#059669" onclick="sendAnnToAtlasById('${a.id}')">🦉 send to atlas</button>`:''}
+        ${!a.atlas&&!a.atlasQueued&&!a.atlasSent?`<button class="ai-del" style="color:#059669" onclick="sendAnnToAtlasById('${a.id}')">🦉 queue for atlas</button>`:''}
+        ${a.atlasQueued&&!a.atlasSent?`<button class="ai-del" style="color:#fbbf24" onclick="commitNow()">commit now</button>`:''}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 function toggleAP(){
   const ap=document.getElementById('ap');
@@ -816,35 +869,60 @@ function toggleAP(){
   if(isOpen)renderAnnList();
 }
 
-/* ── SEND TO ATLAS (Telegram) ── */
-async function sendAnnToAtlas(ann){
-  if(!S.cfg.tgTok||!S.cfg.tgChat){
-    toast('Configure Telegram in settings to send to Atlas');
-    return;
-  }
-  const docTitle_=docTitle(ta.value);
-  const msg=`📝 *Annotation from Prose*\n\n*Document:* ${docTitle_}\n\n*Quoted text:*\n_"${ann.quote}"_\n\n*Note:*\n${ann.note}\n\n—`;
+/* ── SEND TO ATLAS (Telegram) — post-commit only ── */
+async function dispatchAnnToAtlas(ann, commitSha){
+  if(!S.cfg.tgTok||!S.cfg.tgChat) return;
+  const title=docTitle(ta.value);
+  const repo=S.cfg.ghRepo; const path=S.cfg.ghPath; const branch=S.cfg.ghBranch;
+  const ghUrl=repo?`https://github.com/${repo}/blob/${commitSha||branch}/${path}`:'';
+  const rawUrl=repo?`https://raw.githubusercontent.com/${repo}/${commitSha||branch}/${path}`:'';
+
+  // Build message with full context for Atlas/Quill
+  const msg=[
+    `✏️ *Prose annotation — review requested*`,
+    ``,
+    `*Document:* ${title}`,
+    commitSha?`*Commit:* \`${commitSha}\``:'',
+    ghUrl?`*File:* ${ghUrl}`:'',
+    rawUrl?`*Raw:* ${rawUrl}`:'',
+    ``,
+    `*Quoted text:*`,
+    `_"${ann.quote}"_`,
+    ``,
+    `*Note from Christian:*`,
+    ann.note,
+    ``,
+    `_Fetch the full document at the commit above, use Quill for literary feedback, reply here._`
+  ].filter(l=>l!==null).join('\n');
+
   try{
     const r=await fetch(`https://api.telegram.org/bot${S.cfg.tgTok}/sendMessage`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({chat_id:S.cfg.tgChat,text:msg,parse_mode:'Markdown'})
+      body:JSON.stringify({chat_id:S.cfg.tgChat,text:msg,parse_mode:'Markdown',disable_web_page_preview:true})
     });
     const d=await r.json();
     if(d.ok){
-      // mark as sent
       const a=annForDoc().find(x=>x.id===ann.id);
-      if(a)a.atlasSent=true;
+      if(a){a.atlasSent=true;a.commitSha=commitSha;a.atlasQueued=false;}
       saveAnns(); renderAnnList();
+    } else {
+      toast('Telegram error: '+d.description);
+      // re-queue on failure
+      _annQueue.push(ann);
     }
-    else toast('Telegram error: '+d.description);
-  }catch(e){toast('Send failed: '+e.message);}
+  }catch(e){
+    toast('Send failed: '+e.message);
+    _annQueue.push(ann);
+  }
 }
+
 function sendAnnToAtlasById(id){
   const a=annForDoc().find(x=>x.id===id);
   if(!a)return;
-  a.atlas=true; saveAnns(); renderAnnList();
-  sendAnnToAtlas(a);
+  a.atlas=true; a.atlasQueued=true; saveAnns(); renderAnnList();
+  _annQueue.push(a);
+  toast('Queued — will send after next commit 🦉');
 }
 
 /* ── POPOVER ── */
