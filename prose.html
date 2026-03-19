@@ -92,9 +92,9 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
 .crow input[type=checkbox]{accent-color:#059669;width:14px;height:14px;cursor:pointer}
 .crow label{font-size:13px;color:var(--fg2);cursor:pointer;margin:0}
 /* cmd palette */
-#cmd-mo{padding-top:108px}
-#cmd-box{width:440px}
-#cmd-in{width:100%;background:transparent;border:none;border-bottom:1px solid var(--fg3);padding:4px 0 12px;font-family:var(--font);font-size:16px;color:var(--fg);outline:none;margin-bottom:14px}
+#cmd-mo{padding-top:88px}
+#cmd-box{width:480px}
+#cmd-in{width:100%;background:transparent;border:none;border-bottom:1px solid var(--fg3);padding:4px 0 12px;font-family:var(--font);font-size:16px;color:var(--fg);outline:none;display:block}
 .ci{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-radius:6px;cursor:pointer;transition:background .1s}
 .ci:hover,.ci.sel{background:rgba(128,128,128,.1)}
 .ci-l{font-size:13px}
@@ -272,9 +272,20 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
 
 <!-- Cmd palette -->
 <div class="mo" id="cmd-mo" onclick="moOut(event,'cmd-mo')">
-  <div class="mbox" id="cmd-box">
-    <input id="cmd-in" placeholder="Search commands…" oninput="filterCmds()" onkeydown="cmdKey(event)" autocomplete="off">
-    <div id="cmd-list"></div>
+  <div class="mbox" id="cmd-box" style="padding:0;overflow:hidden;width:480px">
+    <!-- search bar -->
+    <div style="padding:16px 18px 0">
+      <input id="cmd-in" placeholder="Search…" oninput="filterCmds()" onkeydown="cmdKey(event)" autocomplete="off">
+    </div>
+    <!-- tab bar -->
+    <div id="cmd-tabs" style="display:flex;border-bottom:1px solid var(--fg3);padding:0 4px">
+      <button class="stab active" data-ctab="all"      onclick="switchCtab(this,'all')">All</button>
+      <button class="stab"        data-ctab="write"    onclick="switchCtab(this,'write')">Write</button>
+      <button class="stab"        data-ctab="navigate" onclick="switchCtab(this,'navigate')">Navigate</button>
+      <button class="stab"        data-ctab="sync"     onclick="switchCtab(this,'sync')">Sync</button>
+      <button class="stab"        data-ctab="view"     onclick="switchCtab(this,'view')">View</button>
+    </div>
+    <div id="cmd-list" style="padding:8px 6px;max-height:340px;overflow-y:auto"></div>
   </div>
 </div>
 
@@ -974,42 +985,64 @@ function closeAllMo(){
 
 /* ── CMD PALETTE ── */
 const CMDS=[
-  {l:'New Document',k:'⌘N',fn:()=>newDoc()},
-  {l:'Open Document',k:'⌘O',fn:()=>openDocs()},
-  {l:'Save',k:'⌘S',fn:()=>saveDoc()},
-  {l:'Sync to GitHub',k:'⌘⇧S',fn:()=>syncToGH()},
-  {l:'Pull from GitHub',k:'⌘⇧P',fn:()=>pullFromGH()},
-  {l:'Preview',k:'⌘P',fn:()=>togglePreview()},
-  {l:'Focus Mode',k:'⌘F',fn:()=>toggleFocus()},
-  {l:'Annotate Selection',k:'⌘⇧A',fn:()=>openAnnotate()},
-  {l:'Annotations Panel',k:'⌘⇧I',fn:()=>toggleAP()},
-  {l:'Export',k:'⌘E',fn:()=>openExport()},
-  {l:'Settings',k:'⌘,',fn:()=>openSettings()},
-  {l:'Appearance / Theme',k:'',fn:()=>openThemePicker()},
-  {l:'Word Count',k:'',fn:()=>{const t=ta.value.trim();toast((t?t.split(/\s+/).length:0)+' words')}},
-  {l:'Bold',k:'⌘B',fn:()=>{closeMo('cmd-mo');setTimeout(()=>wrapSel('**','**'),50)}},
-  {l:'Italic',k:'⌘I',fn:()=>{closeMo('cmd-mo');setTimeout(()=>wrapSel('*','*'),50)}},
-  {l:'Toggle Toolbar',k:'⌃T',fn:()=>togglePinFtb()},
-  {l:'File Browser',k:'⌘⇧B',fn:()=>toggleFB()},
-  {l:'Chapter Navigator',k:'⌘⇧H',fn:()=>toggleCN()},
-  {l:'Save Snapshot',k:'⌘⇧N',fn:()=>openSnapshot()},
-  {l:'Set Word Goal',k:'',fn:()=>{const g=prompt('Daily word goal (0 to disable):',S.cfg.wordGoal||0);if(g!==null){S.cfg.wordGoal=parseInt(g)||0;localStorage.setItem('prose_cfg',JSON.stringify(S.cfg));updateGoal();}}},
-  {l:'Fullscreen',k:'F11',fn:()=>toggleFullscreen()},
-  {l:'Document Stats',k:'⌘I',fn:()=>toggleStats()},
-  {l:'Spellcheck Language',k:'',fn:()=>cycleLang()},
-  {l:'Toggle Autocorrect',k:'',fn:()=>{acEnabled=!acEnabled;toast('Autocorrect '+(acEnabled?'on':'off'));}},
+  // write
+  {t:'write',l:'Bold',           k:'⌘B',   fn:()=>{closeMo('cmd-mo');setTimeout(()=>wrapSel('**','**'),50)}},
+  {t:'write',l:'Italic',         k:'⌘I',   fn:()=>{closeMo('cmd-mo');setTimeout(()=>wrapSel('*','*'),50)}},
+  {t:'write',l:'Annotate Selection',k:'⌘⇧A',fn:()=>openAnnotate()},
+  {t:'write',l:'Annotations Panel', k:'⌘⇧I',fn:()=>toggleAP()},
+  {t:'write',l:'Toggle Autocorrect',k:'',   fn:()=>{acEnabled=!acEnabled;toast('Autocorrect '+(acEnabled?'on':'off'));}},
+  {t:'write',l:'Spellcheck Language',k:'',  fn:()=>cycleLang()},
+  {t:'write',l:'Word Count',     k:'',      fn:()=>{const t=ta.value.trim();toast((t?t.split(/\s+/).length:0)+' words')}},
+  {t:'write',l:'Document Stats', k:'⌘I',   fn:()=>toggleStats()},
+  // navigate
+  {t:'navigate',l:'New Document',   k:'⌘N',  fn:()=>newDoc()},
+  {t:'navigate',l:'Open Document',  k:'⌘O',  fn:()=>openDocs()},
+  {t:'navigate',l:'File Browser',   k:'⌘⇧B', fn:()=>toggleFB()},
+  {t:'navigate',l:'Chapter Navigator',k:'⌘⇧H',fn:()=>toggleCN()},
+  {t:'navigate',l:'Save Snapshot',  k:'⌘⇧N', fn:()=>openSnapshot()},
+  {t:'navigate',l:'Export',         k:'⌘E',  fn:()=>openExport()},
+  // sync
+  {t:'sync',l:'Save',             k:'⌘S',   fn:()=>saveDoc()},
+  {t:'sync',l:'Commit to GitHub', k:'⌘⇧S',  fn:()=>syncToGH()},
+  {t:'sync',l:'Pull from GitHub', k:'⌘⇧P',  fn:()=>pullFromGH()},
+  {t:'sync',l:'New File on GitHub',k:'',    fn:()=>openNewFile()},
+  // view
+  {t:'view',l:'Preview',          k:'⌘P',   fn:()=>togglePreview()},
+  {t:'view',l:'Focus Mode',       k:'⌘F',   fn:()=>toggleFocus()},
+  {t:'view',l:'Toggle Toolbar',   k:'⌃T',   fn:()=>togglePinFtb()},
+  {t:'view',l:'Fullscreen',       k:'F11',  fn:()=>toggleFullscreen()},
+  {t:'view',l:'Appearance / Theme',k:'',    fn:()=>openThemePicker()},
+  {t:'view',l:'Set Word Goal',    k:'',     fn:()=>{const g=prompt('Daily word goal:',S.cfg.wordGoal||0);if(g!==null){S.cfg.wordGoal=parseInt(g)||0;localStorage.setItem('prose_cfg',JSON.stringify(S.cfg));updateGoal();}}},
+  {t:'view',l:'Settings',         k:'⌘,',  fn:()=>openSettings()},
 ];
+let _cmdTab='all';
 function openCmd(){
   document.getElementById('cmd-in').value='';
+  _cmdTab='all';
+  // reset tab UI
+  const box=document.getElementById('cmd-box');
+  box.querySelectorAll('.stab').forEach(t=>t.classList.remove('active'));
+  const allTab=box.querySelector('[data-ctab="all"]');
+  if(allTab) allTab.classList.add('active');
   S.cmdIdx=0;
-  S.cmdItems=CMDS; // show all on open
-  renderCmds();
+  filterCmds();
   openMo('cmd-mo');
   setTimeout(()=>document.getElementById('cmd-in').focus(),80);
 }
+function switchCtab(el,tab){
+  _cmdTab=tab;
+  const box=document.getElementById('cmd-box');
+  box.querySelectorAll('.stab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('cmd-in').value='';
+  filterCmds();
+  document.getElementById('cmd-in').focus();
+}
 function filterCmds(){
   const q=document.getElementById('cmd-in').value.toLowerCase();
-  S.cmdItems=q?CMDS.filter(c=>c.l.toLowerCase().includes(q)):CMDS;
+  let items=_cmdTab==='all'?CMDS:CMDS.filter(c=>c.t===_cmdTab);
+  if(q) items=items.filter(c=>c.l.toLowerCase().includes(q));
+  S.cmdItems=items;
   S.cmdIdx=0;
   renderCmds();
 }
@@ -1024,11 +1057,19 @@ function runCmd(i){
   closeMo('cmd-mo');
   setTimeout(()=>c.fn(),60);
 }
+const CTABS=['all','write','navigate','sync','view'];
 function cmdKey(e){
   if(e.key==='ArrowDown'){e.preventDefault();S.cmdIdx=Math.min(S.cmdIdx+1,S.cmdItems.length-1);renderCmds();}
   else if(e.key==='ArrowUp'){e.preventDefault();S.cmdIdx=Math.max(S.cmdIdx-1,0);renderCmds();}
   else if(e.key==='Enter'){e.preventDefault();runCmd(S.cmdIdx);}
   else if(e.key==='Escape'){closeMo('cmd-mo');}
+  else if(e.key==='Tab'){
+    e.preventDefault();
+    const i=(CTABS.indexOf(_cmdTab)+1)%CTABS.length;
+    const box=document.getElementById('cmd-box');
+    const el=box.querySelector(`[data-ctab="${CTABS[i]}"]`);
+    if(el) switchCtab(el,CTABS[i]);
+  }
 }
 
 /* ── OPEN DOCS ── */
