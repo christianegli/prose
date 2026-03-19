@@ -2,7 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Prose">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#ffffff" id="theme-meta">
+<link rel="manifest" href="manifest.json">
 <title>Prose</title>
 <style>
 :root {
@@ -44,7 +50,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
 .bq{color:var(--fg2);padding-left:18px;border-left:2px solid var(--fg3)}
 .strike{text-decoration:line-through;opacity:.5}.lnk{color:var(--accent);text-decoration:underline;text-decoration-style:dotted}
 .muted{color:var(--fg3)}.hr-line{border-top:1px solid var(--fg3);display:block;margin:8px 0}
-.dim{opacity:.12;transition:opacity .3s ease}
+.dim{opacity:.28;transition:opacity .3s ease}
 .ann-hl{background:var(--ann);border-radius:2px;cursor:pointer}
 .ann-hl.atlas{background:var(--ann-atlas)}
 /* statusbar */
@@ -1899,8 +1905,23 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>
   if((S.theme||'auto')==='auto') applyTheme();
 });
 
+/* ── PWA ── */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+// Update theme-color meta to match current theme bg
+function syncThemeMeta(){
+  const bg=getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()||'#ffffff';
+  const el=document.getElementById('theme-meta');
+  if(el)el.setAttribute('content',bg);
+}
+// call after theme changes
+const _origApplyTheme=applyTheme;
+// (applyTheme is defined above, we extend it)
+
 /* ── INIT ── */
 init();
+syncThemeMeta();
 </script>
 </body>
 </html>
