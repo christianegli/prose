@@ -358,6 +358,22 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
       </div>
     </div>
 
+    <!-- Typography -->
+    <div style="margin-bottom:24px">
+      <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--fg2);margin-bottom:16px">Typography</p>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+        <label style="margin:0">Font size</label>
+        <span id="s-sz-val" style="font-size:12px;color:var(--fg2);font-variant-numeric:tabular-nums">21px</span>
+      </div>
+      <input type="range" id="s-sz" min="14" max="32" step="1" value="21" oninput="liveTypo()" style="width:100%;margin-bottom:16px;accent-color:var(--accent)">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+        <label style="margin:0">Line width</label>
+        <span id="s-lw-val" style="font-size:12px;color:var(--fg2);font-variant-numeric:tabular-nums">680px</span>
+      </div>
+      <input type="range" id="s-lw" min="400" max="960" step="20" value="680" oninput="liveTypo()" style="width:100%;margin-bottom:4px;accent-color:var(--accent)">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--fg3)"><span>narrow</span><span>wide</span></div>
+    </div>
+
     <!-- Writing Goals -->
     <div style="margin-bottom:22px">
       <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--fg2);margin-bottom:14px">Writing Goals</p>
@@ -494,6 +510,7 @@ function init(){
   if(localStorage.getItem('prose_ftb_pinned')==='1') togglePinFtb();
   updateGoal();
   initLang();
+  loadTypo();
   ta.focus();
 }
 
@@ -522,6 +539,7 @@ function saveSettings(){
   S.cfg.tgTok=document.getElementById('s-tg-tok').value.trim();
   S.cfg.tgChat=document.getElementById('s-tg-chat').value.trim();
   localStorage.setItem('prose_cfg',JSON.stringify(S.cfg));
+  saveTypo();
   closeMo('mo-settings');
   scheduleAutoCommit();
   toast('Settings saved');
@@ -993,6 +1011,13 @@ function openSettings(){
     document.getElementById('gh-user-badge').textContent='✓ Connected';
     ghLoadRepos(S.cfg.ghTok);
   }
+  // populate sliders with current values
+  const curSz=localStorage.getItem('prose_sz')||'21';
+  const curLw=localStorage.getItem('prose_lw')||'680';
+  document.getElementById('s-sz').value=curSz;
+  document.getElementById('s-lw').value=curLw;
+  document.getElementById('s-sz-val').textContent=curSz+'px';
+  document.getElementById('s-lw-val').textContent=curLw+'px';
   openMo('mo-settings');
 }
 function commitNow(){closeMo('mo-ann');syncToGH(false);}
@@ -1665,6 +1690,35 @@ function tryAutocorrect(e){
 }
 
 ta.addEventListener('keydown',tryAutocorrect);
+
+/* ── TYPOGRAPHY SLIDERS ── */
+function liveTypo(){
+  const sz=document.getElementById('s-sz').value;
+  const lw=document.getElementById('s-lw').value;
+  document.getElementById('s-sz-val').textContent=sz+'px';
+  document.getElementById('s-lw-val').textContent=lw+'px';
+  applyTypo(sz,lw);
+}
+function applyTypo(sz,lw){
+  document.documentElement.style.setProperty('--sz',sz+'px');
+  document.documentElement.style.setProperty('--w',lw+'px');
+  autoResize();
+}
+function saveTypo(){
+  const sz=document.getElementById('s-sz').value;
+  const lw=document.getElementById('s-lw').value;
+  localStorage.setItem('prose_sz',sz);
+  localStorage.setItem('prose_lw',lw);
+}
+function loadTypo(){
+  const sz=localStorage.getItem('prose_sz')||'21';
+  const lw=localStorage.getItem('prose_lw')||'680';
+  applyTypo(sz,lw);
+  const szEl=document.getElementById('s-sz');
+  const lwEl=document.getElementById('s-lw');
+  if(szEl){szEl.value=sz;document.getElementById('s-sz-val').textContent=sz+'px';}
+  if(lwEl){lwEl.value=lw;document.getElementById('s-lw-val').textContent=lw+'px';}
+}
 
 /* ── FULLSCREEN ── */
 function toggleFullscreen(){
