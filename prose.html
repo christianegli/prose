@@ -584,8 +584,8 @@ function autoResize(){
 function typewriterScroll(){
   const coord=caretCoords();
   if(!coord)return;
-  const target=coord.top-window.innerHeight*0.42;
-  window.scrollTo({top:Math.max(0,target),behavior:'smooth'});
+  const target=coord.top-window.innerHeight*TW_TARGET;
+  window.scrollTo({top:Math.max(0,target),behavior:S.focus?'instant':'smooth'});
 }
 function caretCoords(){
   const pos=ta.selectionStart;
@@ -716,8 +716,11 @@ function isInCurrentPara(start,end){
 /* ── FOCUS MODE ── */
 function toggleFocus(){
   S.focus=!S.focus;
+  // Add/remove bottom padding so cursor can always reach center
+  document.getElementById('col').style.paddingBottom=S.focus?'60vh':'';
   updateOv();
-  toast(S.focus?'Focus on':'Focus off');
+  if(S.focus) typewriterScroll();
+  toast(S.focus?'Focus on  —  cursor locked to center':'Focus off');
 }
 
 /* ── PREVIEW ── */
@@ -778,9 +781,16 @@ function updateWC(){
 
 /* ── TYPEWRITER ── */
 let twTimer=null;
+const TW_TARGET=0.42; // cursor rests at 42% from top
+
 function scheduleTypewriter(){
-  clearTimeout(twTimer);
-  twTimer=setTimeout(typewriterScroll,150);
+  if(S.focus){
+    // In focus mode: immediate, no debounce
+    typewriterScroll();
+  } else {
+    clearTimeout(twTimer);
+    twTimer=setTimeout(typewriterScroll,150);
+  }
 }
 
 /* ── EVENTS ── */
@@ -814,9 +824,14 @@ ta.addEventListener('keydown',e=>{
   if(mod&&e.key==='i'&&!e.shiftKey){e.preventDefault();toggleStats();return;}
   if(e.key==='F11'){e.preventDefault();toggleFullscreen();return;}
 });
-ta.addEventListener('keyup',()=>{ if(S.focus)updateOv(); });
+
 ta.addEventListener('click',()=>{ if(S.focus)updateOv(); });
-ta.addEventListener('mouseup',()=>{ if(S.focus)setTimeout(updateOv,0); });
+ta.addEventListener('mouseup',()=>{ if(S.focus){setTimeout(updateOv,0);typewriterScroll();} });
+ta.addEventListener('keyup',e=>{
+  if(S.focus&&['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Home','End','PageUp','PageDown'].includes(e.key)){
+    updateOv(); typewriterScroll();
+  }
+});
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){closeAllMo();}
 });
