@@ -455,7 +455,10 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
 <div id="fb">
   <div id="fb-head">
     <span>Files</span>
-    <button id="fb-close" onclick="closeFB()">✕</button>
+    <div style="display:flex;gap:4px">
+      <button onclick="openNewFile()" style="background:none;border:none;color:var(--fg3);cursor:pointer;font-size:13px;padding:2px 7px;border-radius:4px;font-family:var(--font)" title="New file">+</button>
+      <button id="fb-close" onclick="closeFB()">✕</button>
+    </div>
   </div>
   <div id="fb-repo"><span id="fb-repo-label">No GitHub repo configured</span><button id="fb-reload" onclick="loadFBTree()" title="Refresh">↻</button></div>
   <div id="fb-tree"><div style="padding:16px;color:var(--fg3);font-size:12px">Configure GitHub in Settings (⌘,) to browse files.</div></div>
@@ -477,6 +480,31 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
     <button onclick="toggleStats()" style="background:none;border:none;color:var(--fg3);cursor:pointer;font-size:16px;padding:2px 8px;border-radius:4px">✕</button>
   </div>
   <div id="stats-body"></div>
+</div>
+
+<!-- New file modal -->
+<div class="mo" id="mo-newfile" onclick="moOut(event,'mo-newfile')">
+  <div class="mbox" style="width:420px">
+    <h3>New File</h3>
+    <label>Folder <span style="font-weight:400;color:var(--fg3)">(leave blank for root)</span></label>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <select class="fi" id="nf-folder-sel" style="margin-bottom:0;flex:1" onchange="nfFolderPick()">
+        <option value="">— root —</option>
+      </select>
+      <button class="btn btn-g" style="flex-shrink:0;white-space:nowrap;font-size:12px" onclick="nfNewFolder()">+ folder</button>
+    </div>
+    <div id="nf-newfolder-row" style="display:none;margin-bottom:12px">
+      <label>New folder name</label>
+      <input class="fi" id="nf-newfolder" placeholder="e.g. chapters">
+    </div>
+    <label>File name</label>
+    <input class="fi" id="nf-name" placeholder="e.g. chapter-01.md">
+    <div id="nf-preview" style="font-size:11px;color:var(--fg3);margin-top:-8px;margin-bottom:12px"></div>
+    <div class="brow">
+      <button class="btn" onclick="doNewFile()">Create</button>
+      <button class="btn btn-g" onclick="closeMo('mo-newfile')">Cancel</button>
+    </div>
+  </div>
 </div>
 
 <!-- Snapshot modal -->
@@ -880,6 +908,7 @@ ta.addEventListener('keydown',e=>{
 
 ta.addEventListener('click',()=>{ if(S.focus)updateOv(); });
 ta.addEventListener('mouseup',()=>{ if(S.focus){setTimeout(updateOv,0);typewriterScroll();} });
+document.addEventListener('input',e=>{if(['nf-name','nf-newfolder'].includes(e.target.id))updateNfPreview();});
 ta.addEventListener('keyup',e=>{
   if(S.focus&&['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Home','End','PageUp','PageDown'].includes(e.key)){
     updateOv(); typewriterScroll();
@@ -1467,6 +1496,66 @@ async function fbOpenFile(path){
   toast('Opening '+path.split('/').pop()+'…');
   await pullFromGH();
   renderFBTree();
+}
+
+/* ── NEW FILE ── */
+function openNewFile(){
+  if(!S.cfg.ghTok||!S.cfg.ghRepo){toast('Configure GitHub first (⌘,)');return;}
+  const dirs=new Set();
+  fbTree.forEach(f=>{
+    const parts=f.path.split('/');
+    if(parts.length>1) for(let i=1;i<parts.length;i++) dirs.add(parts.slice(0,i).join('/'));
+  });
+  const sel=document.getElementById('nf-folder-sel');
+  sel.innerHTML='<option value="">— root —</option>'+[...dirs].sort().map(d=>`<option value="${d}">${d}</option>`).join('');
+  document.getElementById('nf-name').value='';
+  document.getElementById('nf-newfolder-row').style.display='none';
+  document.getElementById('nf-newfolder').value='';
+  document.getElementById('nf-preview').textContent='';
+  openMo('mo-newfile');
+  setTimeout(()=>document.getElementById('nf-name').focus(),80);
+}
+function nfFolderPick(){updateNfPreview();}
+function nfNewFolder(){
+  const row=document.getElementById('nf-newfolder-row');
+  const show=row.style.display==='none';
+  row.style.display=show?'block':'none';
+  if(show) document.getElementById('nf-newfolder').focus();
+  updateNfPreview();
+}
+function updateNfPreview(){
+  const newFolder=document.getElementById('nf-newfolder').value.trim();
+  const selFolder=document.getElementById('nf-folder-sel').value;
+  const folder=newFolder||selFolder;
+  const raw=document.getElementById('nf-name').value.trim();
+  const name=raw+(raw&&!raw.includes('.')?'.md':'');
+  const path=folder&&name?`${folder}/${name}`:name;
+  document.getElementById('nf-preview').textContent=path?'→ '+path:'';
+}
+async function doNewFile(){
+  const newFolder=document.getElementById('nf-newfolder').value.trim().replace(/[^a-zA-Z0-9_\-]/g,'');
+  const selFolder=document.getElementById('nf-folder-sel').value;
+  const folder=newFolder||selFolder;
+  let name=document.getElementById('nf-name').value.trim();
+  if(!name){toast('Enter a file name');return;}
+  if(!name.includes('.')) name+='.md';
+  const path=folder?`${folder}/${name}`:name;
+  if(fbTree.find(f=>f.path===path)){toast('File already exists');return;}
+  try{
+    const r=await fetch(`https://api.github.com/repos/${S.cfg.ghRepo}/contents/${path}`,{
+      method:'PUT',
+      headers:{'Authorization':'token '+S.cfg.ghTok,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},
+      body:JSON.stringify({message:`Create ${path}`,content:btoa(''),branch:S.cfg.ghBranch||'main'})
+    });
+    if(!r.ok){const e=await r.json();toast('Error: '+(e.message||r.status));return;}
+    S.cfg.ghPath=path;
+    localStorage.setItem('prose_cfg',JSON.stringify(S.cfg));
+    closeMo('mo-newfile');
+    toast('Created '+path);
+    await loadFBTree();
+    ta.value=''; ta.dispatchEvent(new Event('input'));
+    saveDoc(true); dot('ok'); ta.focus();
+  }catch(e){toast('Error: '+e.message);}
 }
 
 /* ── CHAPTER NAVIGATOR ── */
