@@ -153,8 +153,12 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
 .fbi.active{color:var(--accent)}
 .fbi-icon{flex-shrink:0;font-size:12px;opacity:.6}
 .fbi-name{font-size:12px;overflow:hidden;text-overflow:ellipsis}
-.fbi-dir{font-weight:600;color:var(--fg);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:10px 16px 4px;cursor:default}
-.fbi-dir:hover{background:none}
+.fbi-dir{font-weight:600;color:var(--fg);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:8px 16px;cursor:pointer;display:flex;align-items:center;gap:6px;user-select:none;border-radius:4px;margin:0 4px}
+.fbi-dir:hover{background:rgba(128,128,128,.07)}
+.fbi-dir-arrow{font-size:9px;color:var(--fg3);transition:transform .15s;flex-shrink:0}
+.fbi-dir.collapsed .fbi-dir-arrow{transform:rotate(-90deg)}
+.fbi-group{overflow:hidden;transition:max-height .18s ease}
+.fbi-group.collapsed{max-height:0!important}
 
 /* ── CHAPTER NAVIGATOR ── */
 #cn{position:fixed;top:0;right:-260px;width:240px;height:100vh;background:var(--bg);border-left:1px solid var(--fg3);z-index:200;display:flex;flex-direction:column;transition:right .22s ease;font-size:13px}
@@ -1229,28 +1233,67 @@ async function loadFBTree(){
     document.getElementById('fb-tree').innerHTML=`<div style="padding:16px;color:var(--fg3);font-size:12px">Failed: ${e.message}</div>`;
   }
 }
+let fbCollapsed={};
 function renderFBTree(){
   const el=document.getElementById('fb-tree');
   if(!fbTree.length){el.innerHTML='<div style="padding:16px;color:var(--fg3);font-size:12px">No .md or .txt files found.</div>';return;}
-  // Group by directory
+  // Group by top-level directory
   const dirs={};
   fbTree.forEach(f=>{
     const parts=f.path.split('/');
-    const dir=parts.length>1?parts.slice(0,-1).join('/'):'.';
+    const dir=parts.length>1?parts[0]:'.';
     if(!dirs[dir])dirs[dir]=[];
     dirs[dir].push(f);
   });
-  let html='';
   const active=S.cfg.ghPath||'';
-  Object.keys(dirs).sort().forEach(dir=>{
-    if(dir!=='.')html+=`<div class="fbi fbi-dir">${esc(dir)}</div>`;
-    dirs[dir].forEach(f=>{
+  let html='';
+  // Root-level files first
+  if(dirs['.']){
+    dirs['.'].forEach(f=>{
       const name=f.path.split('/').pop();
       const isActive=f.path===active;
-      html+=`<div class="fbi${isActive?' active':''}" onclick="fbOpenFile('${esc(f.path)}')"><span class="fbi-icon">📄</span><span class="fbi-name">${esc(name)}</span></div>`;
+      html+=`<div class="fbi${isActive?' active':''}" onclick="fbOpenFile('${esc(f.path)}')" title="${esc(f.path)}"><span class="fbi-icon">📄</span><span class="fbi-name">${esc(name)}</span></div>`;
     });
+  }
+  // Folders
+  Object.keys(dirs).filter(d=>d!=='.').sort().forEach((dir,idx)=>{
+    const collapsed=fbCollapsed[dir]||false;
+    const gid='fbg-'+idx;
+    html+=`<div class="fbi fbi-dir${collapsed?' collapsed':''}" onclick="toggleFBDir('${esc(dir)}','${gid}')">
+      <span class="fbi-dir-arrow">▾</span>
+      <span>${esc(dir)}</span>
+      <span style="margin-left:auto;color:var(--fg3);font-size:10px;font-weight:400;letter-spacing:0">${dirs[dir].length}</span>
+    </div>`;
+    // Estimate max-height for animation
+    const maxH=dirs[dir].length*34+8;
+    html+=`<div class="fbi-group${collapsed?' collapsed':''}" id="${gid}" style="max-height:${collapsed?0:maxH}px">`;
+    dirs[dir].forEach(f=>{
+      const name=f.path.split('/').pop();
+      // Show sub-path relative to top dir
+      const subParts=f.path.split('/').slice(1);
+      const indent=subParts.length>1?8+((subParts.length-1)*10):8;
+      const isActive=f.path===active;
+      html+=`<div class="fbi${isActive?' active':''}" style="padding-left:${indent+28}px" onclick="fbOpenFile('${esc(f.path)}')" title="${esc(f.path)}">
+        <span class="fbi-icon">📄</span>
+        <span class="fbi-name">${esc(name)}</span>
+      </div>`;
+    });
+    html+='</div>';
   });
   el.innerHTML=html;
+}
+function toggleFBDir(dir,gid){
+  fbCollapsed[dir]=!fbCollapsed[dir];
+  const dirEl=document.querySelector(`.fbi-dir[onclick*="${dir}"]`);
+  const grpEl=document.getElementById(gid);
+  if(!dirEl||!grpEl)return;
+  const collapsed=fbCollapsed[dir];
+  dirEl.classList.toggle('collapsed',collapsed);
+  grpEl.classList.toggle('collapsed',collapsed);
+  if(!collapsed){
+    // restore height for animation
+    grpEl.style.maxHeight=grpEl.scrollHeight+'px';
+  }
 }
 async function fbOpenFile(path){
   if(!S.cfg.ghTok||!S.cfg.ghRepo)return;
