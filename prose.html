@@ -406,12 +406,15 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
         <label style="display:flex;justify-content:space-between;text-transform:none;letter-spacing:0;font-size:13px;font-weight:600;color:var(--fg);margin-bottom:8px">
           Font size <span id="s-sz-val" style="font-weight:400;color:var(--fg2)">21px</span>
         </label>
-        <input type="range" id="s-sz" min="14" max="32" step="1" value="21" oninput="liveTypo()" style="width:100%;margin-bottom:20px;accent-color:var(--accent)">
+        <!-- 6 steps: 14, 17, 19, 21, 24, 28 -->
+        <input type="range" id="s-sz" min="0" max="5" step="1" value="3" oninput="liveTypo()" style="width:100%;margin-bottom:6px;accent-color:var(--accent)">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--fg3);margin-bottom:20px"><span>Small</span><span>Default</span><span>Large</span></div>
         <label style="display:flex;justify-content:space-between;text-transform:none;letter-spacing:0;font-size:13px;font-weight:600;color:var(--fg);margin-bottom:8px">
           Line width <span id="s-lw-val" style="font-weight:400;color:var(--fg2)">680px</span>
         </label>
-        <input type="range" id="s-lw" min="400" max="960" step="20" value="680" oninput="liveTypo()" style="width:100%;margin-bottom:4px;accent-color:var(--accent)">
-        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--fg3)"><span>narrow</span><span>wide</span></div>
+        <!-- 6 steps: 520, 600, 680, 760, 860, 960 -->
+        <input type="range" id="s-lw" min="0" max="5" step="1" value="2" oninput="liveTypo()" style="width:100%;margin-bottom:6px;accent-color:var(--accent)">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--fg3)"><span>Narrow</span><span>Default</span><span>Wide</span></div>
       </div>
 
       <!-- Atlas -->
@@ -1117,13 +1120,13 @@ function openSettings(tab){
     document.getElementById('gh-user-badge').textContent='✓ Connected';
     ghLoadRepos(S.cfg.ghTok);
   }
-  // Sliders
-  const curSz=localStorage.getItem('prose_sz')||'21';
-  const curLw=localStorage.getItem('prose_lw')||'680';
-  document.getElementById('s-sz').value=curSz;
-  document.getElementById('s-lw').value=curLw;
-  document.getElementById('s-sz-val').textContent=curSz+'px';
-  document.getElementById('s-lw-val').textContent=curLw+'px';
+  // Sliders — use step indices
+  const curSzIdx=parseInt(localStorage.getItem('prose_sz_idx')??'3');
+  const curLwIdx=parseInt(localStorage.getItem('prose_lw_idx')??'2');
+  document.getElementById('s-sz').value=curSzIdx;
+  document.getElementById('s-lw').value=curLwIdx;
+  document.getElementById('s-sz-val').textContent=(SZ_STEPS[curSzIdx]||21)+'px';
+  document.getElementById('s-lw-val').textContent=(LW_STEPS[curLwIdx]||680)+'px';
   // Activate tab — scoped to settings modal
   const modal=document.getElementById('mo-settings');
   modal.querySelectorAll('.spanel').forEach(p=>p.style.display='none');
@@ -1970,9 +1973,14 @@ function tryAutocorrect(e){
 ta.addEventListener('keydown',tryAutocorrect);
 
 /* ── TYPOGRAPHY SLIDERS ── */
+const SZ_STEPS=[14,17,19,21,24,28];   // px values for steps 0-5
+const LW_STEPS=[520,600,680,760,860,960]; // px values for steps 0-5
+
 function liveTypo(){
-  const sz=document.getElementById('s-sz').value;
-  const lw=document.getElementById('s-lw').value;
+  const szIdx=parseInt(document.getElementById('s-sz').value);
+  const lwIdx=parseInt(document.getElementById('s-lw').value);
+  const sz=SZ_STEPS[szIdx]||21;
+  const lw=LW_STEPS[lwIdx]||680;
   document.getElementById('s-sz-val').textContent=sz+'px';
   document.getElementById('s-lw-val').textContent=lw+'px';
   applyTypo(sz,lw);
@@ -1983,19 +1991,21 @@ function applyTypo(sz,lw){
   autoResize();
 }
 function saveTypo(){
-  const sz=document.getElementById('s-sz').value;
-  const lw=document.getElementById('s-lw').value;
-  localStorage.setItem('prose_sz',sz);
-  localStorage.setItem('prose_lw',lw);
+  const szIdx=document.getElementById('s-sz').value;
+  const lwIdx=document.getElementById('s-lw').value;
+  localStorage.setItem('prose_sz_idx',szIdx);
+  localStorage.setItem('prose_lw_idx',lwIdx);
 }
 function loadTypo(){
-  const sz=localStorage.getItem('prose_sz')||'21';
-  const lw=localStorage.getItem('prose_lw')||'680';
+  const szIdx=parseInt(localStorage.getItem('prose_sz_idx')??'3');
+  const lwIdx=parseInt(localStorage.getItem('prose_lw_idx')??'2');
+  const sz=SZ_STEPS[szIdx]||21;
+  const lw=LW_STEPS[lwIdx]||680;
   applyTypo(sz,lw);
   const szEl=document.getElementById('s-sz');
   const lwEl=document.getElementById('s-lw');
-  if(szEl){szEl.value=sz;document.getElementById('s-sz-val').textContent=sz+'px';}
-  if(lwEl){lwEl.value=lw;document.getElementById('s-lw-val').textContent=lw+'px';}
+  if(szEl){szEl.value=szIdx;document.getElementById('s-sz-val').textContent=sz+'px';}
+  if(lwEl){lwEl.value=lwIdx;document.getElementById('s-lw-val').textContent=lw+'px';}
 }
 
 /* ── FULLSCREEN ── */
