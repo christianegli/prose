@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prose</title>
+<style>
+:root {
+  --bg:#ffffff;--fg:#1a1a1a;--fg2:#6b6b6b;--fg3:#b0b0b0;
+  --accent:#6b48ff;--sel:rgba(200,180,240,.35);--ann:rgba(255,210,60,.25);
+  --ann-atlas:rgba(52,211,153,.25);--w:680px;
+  --font:'iA Writer Quattro','Courier Prime','Courier New',Georgia,serif;
+  --sz:21px;--lh:1.9;--vpad:120px;
+}
+[data-theme=dark]{
+  --bg:#0d0d0d;--fg:#e6e6e6;--fg2:#888;--fg3:#3a3a3a;--accent:#a78bfa;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100vh}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(--sz);line-height:var(--lh);transition:background .2s,color .2s}
+/* column */
+#col{max-width:var(--w);margin:0 auto;padding:var(--vpad) 24px;position:relative}
+/* textarea + overlay */
+#ta,#ov{font-family:var(--font);font-size:var(--sz);line-height:var(--lh);white-space:pre-wrap;word-wrap:break-word;word-break:break-word;width:100%;padding:0;border:none;outline:none;background:transparent;display:block;letter-spacing:0.01em}
+#ta{color:transparent;caret-color:var(--fg);resize:none;overflow:hidden;position:relative;z-index:2;min-height:calc(100vh - 240px);-webkit-font-smoothing:antialiased}
+#ta::selection{background:var(--sel)}
+#ov{position:absolute;top:var(--vpad);left:24px;right:24px;width:calc(100% - 48px);color:var(--fg);pointer-events:none;z-index:1}
+/* syntax classes */
+.h1{font-size:1.45em;font-weight:700}.h2{font-size:1.2em;font-weight:700}.h3{font-size:1.05em;font-weight:600}
+.bold{font-weight:700}.em{font-style:italic}
+.code{font-family:var(--font);background:rgba(128,128,128,.1);padding:1px 5px;border-radius:3px;font-size:.87em}
+.bq{color:var(--fg2);padding-left:18px;border-left:2px solid var(--fg3)}
+.strike{text-decoration:line-through;opacity:.5}.lnk{color:var(--accent);text-decoration:underline;text-decoration-style:dotted}
+.muted{color:var(--fg3)}.hr-line{border-top:1px solid var(--fg3);display:block;margin:8px 0}
+.dim{opacity:.12;transition:opacity .3s ease}
+.ann-hl{background:var(--ann);border-radius:2px;cursor:pointer}
+.ann-hl.atlas{background:var(--ann-atlas)}
+/* statusbar */
+#sb-z{position:fixed;bottom:0;left:0;right:0;height:52px;z-index:48}
+#sb{position:fixed;bottom:0;left:0;right:0;display:flex;align-items:center;gap:14px;padding:10px max(20px,calc((100vw - 680px)/2));font-size:11px;color:var(--fg3);opacity:0;transition:opacity .2s;pointer-events:none;z-index:49;background:linear-gradient(transparent,var(--bg))}
+#sb-z:hover~#sb,#sb:hover{opacity:1;pointer-events:auto}
+#dot{width:7px;height:7px;border-radius:50%;background:var(--fg3);flex-shrink:0;transition:background .3s}
+#dot.ok{background:#4ade80}#dot.dirty{background:#fbbf24}#dot.err{background:#f87171}
+#sb-dark{margin-left:auto;background:none;border:none;color:var(--fg3);cursor:pointer;font-size:15px;padding:2px 8px;border-radius:4px;transition:color .15s;font-family:var(--font)}
+#sb-dark:hover{color:var(--fg)}
+/* toast */
+#toast{position:fixed;top:22px;right:26px;font-size:11px;color:var(--fg3);opacity:0;transition:opacity .25s;pointer-events:none;z-index:900}
+#toast.on{opacity:1}
+/* modals */
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding-top:88px;opacity:0;pointer-events:none;transition:opacity .15s}
+.mo.open{opacity:1;pointer-events:auto}
+.mbox{background:var(--bg);border:1px solid var(--fg3);border-radius:10px;width:500px;max-width:calc(100vw - 36px);max-height:76vh;overflow-y:auto;padding:24px;font-size:14px;transform:translateY(-8px);transition:transform .15s}
+.mo.open .mbox{transform:translateY(0)}
+.mbox h3{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--fg2);margin-bottom:18px}
+.mbox label{font-size:10px;color:var(--fg2);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.07em}
+.fi{width:100%;background:transparent;border:1px solid var(--fg3);border-radius:6px;padding:8px 12px;font-family:var(--font);font-size:13px;color:var(--fg);outline:none;transition:border-color .15s;display:block;margin-bottom:12px}
+.fi:focus{border-color:var(--accent)}
+.btn{background:var(--fg);color:var(--bg);border:none;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;font-family:var(--font);transition:opacity .15s}
+.btn:hover{opacity:.75}
+.btn-g{background:transparent;color:var(--fg2);border:1px solid var(--fg3)}
+.btn-at{background:#059669;color:#fff}
+.brow{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.crow{display:flex;align-items:center;gap:8px;margin:8px 0 4px}
+.crow input[type=checkbox]{accent-color:#059669;width:14px;height:14px;cursor:pointer}
+.crow label{font-size:13px;color:var(--fg2);cursor:pointer;margin:0}
+/* cmd palette */
+#cmd-mo{padding-top:108px}
+#cmd-box{width:440px}
+#cmd-in{width:100%;background:transparent;border:none;border-bottom:1px solid var(--fg3);padding:4px 0 12px;font-family:var(--font);font-size:16px;color:var(--fg);outline:none;margin-bottom:14px}
+.ci{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-radius:6px;cursor:pointer;transition:background .1s}
+.ci:hover,.ci.sel{background:rgba(128,128,128,.1)}
+.ci-l{font-size:13px}
+.ci-k{font-size:10px;color:var(--fg3);font-family:monospace;background:rgba(128,128,128,.1);padding:2px 6px;border-radius:3px}
+/* annotations panel */
+#ap{position:fixed;top:0;right:-400px;width:360px;height:100vh;background:var(--bg);border-left:1px solid var(--fg3);padding:28px 20px;overflow-y:auto;z-index:200;transition:right .25s ease;font-size:13px}
+#ap.open{right:0}
+#ap h3{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--fg2);margin-bottom:18px}
+.ai{padding:12px 0;border-bottom:1px solid rgba(128,128,128,.1)}
+.ai-q{font-style:italic;color:var(--fg2);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:4px}
+.ai-n{color:var(--fg);line-height:1.55;font-size:13px}
+.ai-m{font-size:10px;color:var(--fg3);margin-top:5px}
+.ai.atlas .ai-m::before{content:'🦉 Atlas · ';color:#059669}
+.ai-del{background:none;border:none;cursor:pointer;font-size:11px;color:var(--fg3);padding:0;font-family:var(--font);margin-top:4px}
+.ai-del:hover{color:#f87171}
+/* popover */
+#pop{position:fixed;background:var(--bg);border:1px solid var(--fg3);border-radius:8px;padding:10px 14px;font-size:12px;max-width:240px;line-height:1.65;box-shadow:0 4px 18px rgba(0,0,0,.14);z-index:600;display:none;pointer-events:none}
+/* preview */
+#prev{display:none;max-width:var(--w);margin:0 auto;padding:var(--vpad) 24px;font-family:var(--font);font-size:var(--sz);line-height:var(--lh);color:var(--fg)}
+#prev.on{display:block}
+#col.hidden{display:none}
+#prev h1{font-size:1.45em;font-weight:700;margin:1em 0 .4em}
+#prev h2{font-size:1.2em;font-weight:700;margin:1em 0 .4em}
+#prev h3{font-size:1.05em;font-weight:600;margin:.9em 0 .3em}
+#prev p{margin-bottom:.9em}
+#prev blockquote{border-left:2px solid var(--fg3);padding-left:18px;color:var(--fg2);margin:1em 0}
+#prev code{background:rgba(128,128,128,.1);padding:2px 5px;border-radius:3px;font-size:.88em}
+#prev pre{background:rgba(128,128,128,.07);border-radius:8px;padding:16px;overflow-x:auto;margin:1em 0}
+#prev pre code{background:none;padding:0}
+#prev a{color:var(--accent)}
+#prev hr{border:none;border-top:1px solid var(--fg3);margin:2em 0}
+#prev ul,#prev ol{padding-left:1.5em;margin-bottom:.9em}
+#prev li{margin-bottom:.25em}
+#prev del{text-decoration:line-through;opacity:.55}
+/* doc list */
+.di{display:flex;justify-content:space-between;align-items:center;padding:9px 8px;border-radius:6px;cursor:pointer;transition:background .1s}
+.di:hover{background:rgba(128,128,128,.08)}
+.di-t{font-size:13px}.di-m{font-size:11px;color:var(--fg3)}
+.di-x{background:none;border:none;color:var(--fg3);cursor:pointer;font-size:12px;padding:2px 6px;border-radius:4px}
+.di-x:hover{color:#f87171}
+/* export */
+.eo{display:block;width:100%;text-align:left;background:transparent;border:1px solid var(--fg3);border-radius:6px;padding:10px 14px;font-family:var(--font);font-size:13px;color:var(--fg);cursor:pointer;margin-bottom:8px;transition:border-color .15s}
+.eo:hover{border-color:var(--accent)}
+/* scrollbar */
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:transparent;border-radius:2px}
+*:hover::-webkit-scrollbar-thumb{background:rgba(128,128,128,.25)}
+</style>
+</head>
+<body>
+
+<div id="col">
+  <div id="ov" aria-hidden="true"></div>
+  <textarea id="ta" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="true" placeholder="Start writing…"></textarea>
+</div>
+<div id="prev"></div>
+
+<div id="sb-z"></div>
+<div id="sb">
+  <div id="dot" title="Sync"></div>
+  <span id="sb-wc">0 words</span>
+  <span id="sb-cc">0 chars</span>
+  <span id="sb-dn" style="color:var(--fg2)"></span>
+  <button id="sb-dark" onclick="toggleDark()" title="Toggle dark mode">◐</button>
+</div>
+<div id="toast"></div>
+
+<!-- Cmd palette -->
+<div class="mo" id="cmd-mo" onclick="moOut(event,'cmd-mo')">
+  <div class="mbox" id="cmd-box">
+    <input id="cmd-in" placeholder="Search commands…" oninput="filterCmds()" onkeydown="cmdKey(event)" autocomplete="off">
+    <div id="cmd-list"></div>
+  </div>
+</div>
+
+<!-- Open -->
+<div class="mo" id="mo-open" onclick="moOut(event,'mo-open')">
+  <div class="mbox">
+    <h3>Documents</h3>
+    <div id="doc-list"></div>
+    <div class="brow"><button class="btn btn-g" onclick="closeMo('mo-open')">Close</button></div>
+  </div>
+</div>
+
+<!-- Export -->
+<div class="mo" id="mo-export" onclick="moOut(event,'mo-export')">
+  <div class="mbox">
+    <h3>Export</h3>
+    <button class="eo" onclick="doExport('copy-md')">Copy Markdown</button>
+    <button class="eo" onclick="doExport('copy-html')">Copy HTML</button>
+    <button class="eo" onclick="doExport('dl-md')">Download .md file</button>
+    <button class="eo" onclick="doExport('dl-html')">Download .html file</button>
+    <div class="brow"><button class="btn btn-g" onclick="closeMo('mo-export')">Close</button></div>
+  </div>
+</div>
+
+<!-- Annotate -->
+<div class="mo" id="mo-ann" onclick="moOut(event,'mo-ann')">
+  <div class="mbox">
+    <h3>Add Annotation</h3>
+    <div id="ann-sel" style="font-style:italic;color:var(--fg2);font-size:13px;margin-bottom:14px;line-height:1.5"></div>
+    <label>Note</label>
+    <textarea id="ann-note" class="fi" rows="3" placeholder="Your note…" style="resize:vertical;font-size:14px;line-height:1.6"></textarea>
+    <div class="crow">
+      <input type="checkbox" id="ann-atlas-chk" onchange="toggleAtlasBtn()">
+      <label for="ann-atlas-chk">🦉 Assign to Atlas for review</label>
+    </div>
+    <div class="brow">
+      <button class="btn" onclick="saveAnn()">Save annotation</button>
+      <button class="btn btn-at" id="ann-atlas-btn" style="display:none" onclick="saveAnn(true)">🦉 Send to Atlas</button>
+      <button class="btn btn-g" onclick="closeMo('mo-ann')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings -->
+<div class="mo" id="mo-settings" onclick="moOut(event,'mo-settings')">
+  <div class="mbox">
+    <h3>Settings</h3>
+    <div style="margin-bottom:22px">
+      <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--fg2);margin-bottom:14px">GitHub Sync</p>
+      <label>Personal Access Token</label>
+      <input class="fi" id="s-gh-tok" type="password" placeholder="ghp_…">
+      <label>Repository (owner/repo)</label>
+      <input class="fi" id="s-gh-repo" placeholder="username/my-notes">
+      <label>File path</label>
+      <input class="fi" id="s-gh-path" placeholder="writing/notes.md">
+      <label>Branch</label>
+      <input class="fi" id="s-gh-branch" placeholder="main">
+    </div>
+    <div style="margin-bottom:22px">
+      <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--fg2);margin-bottom:14px">Atlas Integration</p>
+      <p style="font-size:12px;color:var(--fg2);margin-bottom:12px">Connect to Atlas via Telegram to send annotations for review.</p>
+      <label>Telegram Bot Token</label>
+      <input class="fi" id="s-tg-tok" type="password" placeholder="bot token">
+      <label>Telegram Chat ID</label>
+      <input class="fi" id="s-tg-chat" placeholder="7700527888">
+    </div>
+    <div class="brow">
+      <button class="btn" onclick="saveSettings()">Save</button>
+      <button class="btn btn-g" onclick="closeMo('mo-settings')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Annotations Panel -->
+<div id="ap">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+    <h3 style="margin:0">Annotations</h3>
+    <button onclick="toggleAP()" style="background:none;border:none;color:var(--fg3);cursor:pointer;font-size:16px;padding:2px 8px;border-radius:4px">✕</button>
+  </div>
+  <div id="ap-list"></div>
+</div>
+
+<!-- Popover -->
+<div id="pop"></div>
+
+<script>
+'use strict';
+
+/* ── STATE ── */
+const S={docs:[],cur:null,dirty:false,focus:false,preview:false,dark:false,anns:{},cfg:{ghTok:'',ghRepo:'',ghPath:'',ghBranch:'main',tgTok:'',tgChat:''},cmdIdx:0,cmdItems:[]};
+let annPending=null;
+
+const ta=document.getElementById('ta');
+const ov=document.getElementById('ov');
+
+/* ── BOOT ── */
+function init(){
+  loadCfg(); loadDocs(); loadAnns();
+  const last=localStorage.getItem('prose_cur');
+  if(last&&S.docs.find(d=>d.id===last)) loadDoc(last);
+  else if(S.docs.length) loadDoc(S.docs[0].id);
+  else newDoc(true);
+  applyTheme();
+  setInterval(()=>{if(S.dirty)saveDoc(true)},30000);
+  ta.focus();
+}
+
+/* ── STORAGE ── */
+function loadDocs(){try{S.docs=JSON.parse(localStorage.getItem('prose_docs')||'[]')}catch(e){S.docs=[]}}
+function saveDocs(){localStorage.setItem('prose_docs',JSON.stringify(S.docs))}
+function loadAnns(){try{S.anns=JSON.parse(localStorage.getItem('prose_anns')||'{}')}catch(e){S.anns={}}}
+function saveAnns(){localStorage.setItem('prose_anns',JSON.stringify(S.anns))}
+function loadCfg(){
+  try{Object.assign(S.cfg,JSON.parse(localStorage.getItem('prose_cfg')||'{}'))}catch(e){}
+  S.dark=localStorage.getItem('prose_dark')==='1';
+}
+function saveSettings(){
+  S.cfg.ghTok=document.getElementById('s-gh-tok').value.trim();
+  S.cfg.ghRepo=document.getElementById('s-gh-repo').value.trim();
+  S.cfg.ghPath=document.getElementById('s-gh-path').value.trim();
+  S.cfg.ghBranch=document.getElementById('s-gh-branch').value.trim()||'main';
+  S.cfg.tgTok=document.getElementById('s-tg-tok').value.trim();
+  S.cfg.tgChat=document.getElementById('s-tg-chat').value.trim();
+  localStorage.setItem('prose_cfg',JSON.stringify(S.cfg));
+  closeMo('mo-settings');
+  toast('Settings saved');
+}
+
+/* ── DOCS ── */
+function docTitle(txt){
+  if(!txt)return'Untitled';
+  const h1=(txt.match(/^#\s+(.+)$/m)||[])[1];
+  if(h1)return h1.trim().substring(0,60);
+  return txt.trim().split('\n')[0].replace(/^#+\s*/,'').substring(0,60)||'Untitled';
+}
+function loadDoc(id){
+  const doc=S.docs.find(d=>d.id===id);
+  if(!doc)return;
+  S.cur=id; ta.value=doc.content||''; S.dirty=false;
+  dot('ok'); localStorage.setItem('prose_cur',id);
+  const t=docTitle(doc.content);
+  document.title=t+' · Prose';
+  document.getElementById('sb-dn').textContent=t;
+  autoResize(); updateOv(); updateWC();
+  setTimeout(typewriterScroll,80);
+}
+function saveDoc(silent){
+  if(!S.cur)return;
+  const i=S.docs.findIndex(d=>d.id===S.cur);
+  if(i<0)return;
+  S.docs[i].content=ta.value; S.docs[i].updated=Date.now();
+  S.docs[i].title=docTitle(ta.value);
+  saveDocs(); S.dirty=false; dot('ok');
+  const t=docTitle(ta.value);
+  document.title=t+' · Prose';
+  document.getElementById('sb-dn').textContent=t;
+  if(!silent)toast('Saved');
+}
+function newDoc(silent){
+  if(!silent&&S.dirty)saveDoc(true);
+  const id='doc_'+Date.now();
+  S.docs.unshift({id,title:'Untitled',content:'',created:Date.now(),updated:Date.now()});
+  saveDocs(); loadDoc(id); ta.focus();
+}
+function deleteDoc(id,e){
+  if(e)e.stopPropagation();
+  if(S.docs.length<=1){alert('Cannot delete the only document.');return;}
+  if(!confirm('Delete this document?'))return;
+  S.docs=S.docs.filter(d=>d.id!==id); saveDocs();
+  delete S.anns[id]; saveAnns();
+  if(S.cur===id)loadDoc(S.docs[0].id);
+  renderDocList();
+}
+
+/* ── RESIZE ── */
+function autoResize(){
+  ta.style.height='auto';
+  ta.style.height=ta.scrollHeight+'px';
+  ov.style.height=ta.scrollHeight+'px';
+}
+
+/* ── TYPEWRITER ── */
+function typewriterScroll(){
+  const coord=caretCoords();
+  if(!coord)return;
+  const target=coord.top-window.innerHeight*0.42;
+  window.scrollTo({top:Math.max(0,target),behavior:'smooth'});
+}
+function caretCoords(){
+  const pos=ta.selectionStart;
+  const text=ta.value.substring(0,pos);
+  const clone=document.createElement('div');
+  Object.assign(clone.style,{
+    position:'absolute',visibility:'hidden',
+    fontFamily:getComputedStyle(ta).fontFamily,
+    fontSize:getComputedStyle(ta).fontSize,
+    lineHeight:getComputedStyle(ta).lineHeight,
+    whiteSpace:'pre-wrap',wordWrap:'break-word',
+    width:ta.offsetWidth+'px',padding:'0',
+    top:ta.getBoundingClientRect().top+window.scrollY+'px',
+    left:ta.getBoundingClientRect().left+'px'
+  });
+  clone.textContent=text;
+  const cursor=document.createElement('span');
+  cursor.textContent='|';
+  clone.appendChild(cursor);
+  document.body.appendChild(clone);
+  const r={top:cursor.getBoundingClientRect().top+window.scrollY};
+  document.body.removeChild(clone);
+  return r;
+}
+
+/* ── OVERLAY ── */
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+function inlineMD(s){
+  s=s.replace(/\*\*\*(.+?)\*\*\*/g,'<span class="bold em">$1</span>');
+  s=s.replace(/\*\*(.+?)\*\*/g,'<span class="bold">$1</span>');
+  s=s.replace(/__(.+?)__/g,'<span class="bold">$1</span>');
+  s=s.replace(/\*([^*\n]+?)\*/g,'<span class="em">$1</span>');
+  s=s.replace(/_([^_\n]+?)_/g,'<span class="em">$1</span>');
+  s=s.replace(/~~(.+?)~~/g,'<span class="strike">$1</span>');
+  s=s.replace(/`([^`]+)`/g,'<span class="code">$1</span>');
+  s=s.replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<span class="lnk">[$1]($2)</span>');
+  return s;
+}
+
+function annForDoc(){return S.anns[S.cur]||[]}
+
+function highlightWithAnns(escapedLine, lineStart){
+  /* apply annotation highlights to an escaped HTML line */
+  const anns=annForDoc().filter(a=>a.e>lineStart&&a.s<lineStart+escapedLine.replace(/&[^;]+;/g,' ').length);
+  if(!anns.length)return escapedLine;
+  // rebuild char by char is complex with HTML escape; just wrap whole line if hit
+  // proper implementation: inject spans at character positions
+  let out=escapedLine;
+  anns.forEach(a=>{
+    const cls='ann-hl'+(a.atlas?' atlas':'');
+    // mark first occurrence of the quoted text
+    const q=esc(a.quote||'').substring(0,40);
+    if(q)out=out.replace(q,`<span class="${cls}" data-aid="${a.id}">${q}</span>`);
+  });
+  return out;
+}
+
+function renderLine(raw, lineStart){
+  const e=esc(raw);
+  const h=e.trimStart();
+  let out;
+  if(/^#{1} /.test(raw)) out=`<span class="h1">${highlightWithAnns(inlineMD(e),lineStart)}</span>`;
+  else if(/^#{2} /.test(raw)) out=`<span class="h2">${highlightWithAnns(inlineMD(e),lineStart)}</span>`;
+  else if(/^#{3,} /.test(raw)) out=`<span class="h3">${highlightWithAnns(inlineMD(e),lineStart)}</span>`;
+  else if(/^> /.test(raw)) out=`<span class="bq">${highlightWithAnns(inlineMD(e),lineStart)}</span>`;
+  else if(/^---+$/.test(raw.trim())) out=`<span class="muted">${e}</span>`;
+  else if(/^[*\-] /.test(raw.trim())||/^\d+\. /.test(raw.trim())) out=highlightWithAnns(inlineMD(e),lineStart);
+  else out=highlightWithAnns(inlineMD(e),lineStart);
+  return out;
+}
+
+function updateOv(){
+  const lines=ta.value.split('\n');
+  let pos=0, html='';
+  const curLine=getCurrentLine();
+  lines.forEach((l,i)=>{
+    const lineStart=pos;
+    const rendered=renderLine(l,lineStart);
+    if(S.focus){
+      const inPara=isInCurrentPara(pos,pos+l.length);
+      html+=inPara?rendered:`<span class="dim">${rendered}</span>`;
+    } else {
+      html+=rendered;
+    }
+    html+='\n';
+    pos+=l.length+1;
+  });
+  ov.innerHTML=html;
+  // attach popover listeners
+  ov.querySelectorAll('[data-aid]').forEach(el=>{
+    el.addEventListener('mouseenter',showPopover);
+    el.addEventListener('mouseleave',hidePopover);
+  });
+}
+
+function getCurrentLine(){
+  const v=ta.value, p=ta.selectionStart;
+  const before=v.substring(0,p);
+  return (before.match(/\n/g)||[]).length;
+}
+
+function isInCurrentPara(start,end){
+  const v=ta.value, cp=ta.selectionStart;
+  // find paragraph boundaries around cursor
+  let ps=cp, pe=cp;
+  while(ps>0&&v[ps-1]!=='\n')ps--;
+  while(pe<v.length&&v[pe]!=='\n')pe++;
+  // expand para to include adjacent non-empty lines
+  while(ps>1&&v.substring(ps-2,ps-1)!=='\n')ps=v.lastIndexOf('\n',ps-2)+1;
+  return end>=ps&&start<=pe;
+}
+
+/* ── FOCUS MODE ── */
+function toggleFocus(){
+  S.focus=!S.focus;
+  updateOv();
+  toast(S.focus?'Focus on':'Focus off');
+}
+
+/* ── PREVIEW ── */
+function togglePreview(){
+  S.preview=!S.preview;
+  document.getElementById('col').classList.toggle('hidden',S.preview);
+  const prev=document.getElementById('prev');
+  if(S.preview){
+    prev.innerHTML=mdToHtml(ta.value);
+    prev.classList.add('on');
+  } else {
+    prev.classList.remove('on');
+    ta.focus();
+  }
+}
+
+/* ── MARKDOWN → HTML (preview) ── */
+function mdToHtml(md){
+  let lines=md.split('\n'),out=[],inCode=false,inUl=false,inOl=false;
+  function closeList(){if(inUl){out.push('</ul>');inUl=false;}if(inOl){out.push('</ol>');inOl=false;}}
+  lines.forEach(l=>{
+    if(/^```/.test(l)){if(inCode){out.push('</code></pre>');inCode=false;}else{out.push('<pre><code>');inCode=true;}return;}
+    if(inCode){out.push(esc(l));return;}
+    if(/^# /.test(l)){closeList();out.push(`<h1>${inline(l.replace(/^# /,''))}</h1>`);return;}
+    if(/^## /.test(l)){closeList();out.push(`<h2>${inline(l.replace(/^## /,''))}</h2>`);return;}
+    if(/^### /.test(l)){closeList();out.push(`<h3>${inline(l.replace(/^### /,''))}</h3>`);return;}
+    if(/^> /.test(l)){closeList();out.push(`<blockquote><p>${inline(l.replace(/^> /,''))}</p></blockquote>`);return;}
+    if(/^---+$/.test(l.trim())){closeList();out.push('<hr>');return;}
+    if(/^[*\-] /.test(l)){if(!inUl){if(inOl){out.push('</ol>');inOl=false;}out.push('<ul>');inUl=true;}out.push(`<li>${inline(l.replace(/^[*\-] /,''))}</li>`);return;}
+    if(/^\d+\. /.test(l)){if(!inOl){if(inUl){out.push('</ul>');inUl=false;}out.push('<ol>');inOl=true;}out.push(`<li>${inline(l.replace(/^\d+\. /,''))}</li>`);return;}
+    closeList();
+    if(l.trim()==='')out.push('<p></p>');
+    else out.push(`<p>${inline(l)}</p>`);
+  });
+  closeList();
+  return out.join('\n');
+}
+function inline(s){
+  s=esc(s);
+  s=s.replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>');
+  s=s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+  s=s.replace(/__(.+?)__/g,'<strong>$1</strong>');
+  s=s.replace(/\*([^*\n]+?)\*/g,'<em>$1</em>');
+  s=s.replace(/_([^_\n]+?)_/g,'<em>$1</em>');
+  s=s.replace(/~~(.+?)~~/g,'<del>$1</del>');
+  s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
+  s=s.replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank">$1</a>');
+  return s;
+}
+
+/* ── WORD COUNT ── */
+function updateWC(){
+  const txt=ta.value;
+  const wc=txt.trim()===''?0:txt.trim().split(/\s+/).length;
+  document.getElementById('sb-wc').textContent=wc+' words';
+  document.getElementById('sb-cc').textContent=txt.length+' chars';
+}
+
+/* ── TYPEWRITER ── */
+let twTimer=null;
+function scheduleTypewriter(){
+  clearTimeout(twTimer);
+  twTimer=setTimeout(typewriterScroll,150);
+}
+
+/* ── EVENTS ── */
+ta.addEventListener('input',()=>{
+  autoResize(); updateOv(); updateWC();
+  S.dirty=true; dot('dirty');
+  scheduleTypewriter();
+});
+ta.addEventListener('keydown',e=>{
+  const mod=e.metaKey||e.ctrlKey;
+  if(mod&&e.key==='b'){e.preventDefault();wrapSel('**','**');return;}
+  if(mod&&e.key==='i'){e.preventDefault();wrapSel('*','*');return;}
+  if(mod&&e.key==='s'&&!e.shiftKey){e.preventDefault();saveDoc();return;}
+  if(mod&&e.shiftKey&&e.key==='S'){e.preventDefault();syncToGH();return;}
+  if(mod&&e.shiftKey&&e.key==='P'){e.preventDefault();pullFromGH();return;}
+  if(mod&&e.key==='p'&&!e.shiftKey){e.preventDefault();togglePreview();return;}
+  if(mod&&e.key==='f'){e.preventDefault();toggleFocus();return;}
+  if(mod&&e.key==='n'){e.preventDefault();newDoc();return;}
+  if(mod&&e.key==='o'){e.preventDefault();openDocs();return;}
+  if(mod&&e.key==='e'){e.preventDefault();openExport();return;}
+  if(mod&&e.key===','){e.preventDefault();openSettings();return;}
+  if(mod&&e.key==='k'){e.preventDefault();openCmd();return;}
+  if(mod&&e.shiftKey&&e.key==='A'){e.preventDefault();openAnnotate();return;}
+  if(mod&&e.shiftKey&&e.key==='I'){e.preventDefault();toggleAP();return;}
+  if(e.key==='Tab'){e.preventDefault();insertAtCaret('  ');}
+});
+ta.addEventListener('keyup',()=>{ if(S.focus)updateOv(); });
+ta.addEventListener('click',()=>{ if(S.focus)updateOv(); });
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){closeAllMo();}
+});
+// popover on overlay clicks for annotations
+ov.addEventListener('click',e=>{
+  const aid=e.target.dataset&&e.target.dataset.aid;
+  if(aid){
+    const a=annForDoc().find(x=>x.id===aid);
+    if(a)showAnnotationDetail(a,e);
+  }
+});
+
+/* ── WRAP SELECTION ── */
+function wrapSel(before,after){
+  const s=ta.selectionStart,e=ta.selectionEnd;
+  const sel=ta.value.substring(s,e);
+  const rep=before+sel+after;
+  ta.setRangeText(rep,s,e,'select');
+  ta.selectionStart=s+before.length;
+  ta.selectionEnd=s+before.length+sel.length;
+  ta.dispatchEvent(new Event('input'));
+}
+function insertAtCaret(txt){
+  const s=ta.selectionStart;
+  ta.setRangeText(txt,s,s,'end');
+  ta.dispatchEvent(new Event('input'));
+}
+
+/* ── DARK MODE ── */
+function applyTheme(){
+  document.documentElement.setAttribute('data-theme',S.dark?'dark':'');
+}
+function toggleDark(){
+  S.dark=!S.dark;
+  localStorage.setItem('prose_dark',S.dark?'1':'0');
+  applyTheme();
+}
+
+/* ── STATUS DOT ── */
+function dot(state){
+  const el=document.getElementById('dot');
+  el.className=''; el.classList.add(state);
+}
+
+/* ── TOAST ── */
+let toastTimer;
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('on'),1800);
+}
+
+/* ── MODALS ── */
+function openMo(id){document.getElementById(id).classList.add('open')}
+function closeMo(id){document.getElementById(id).classList.remove('open')}
+function moOut(e,id){if(e.target===document.getElementById(id))closeMo(id);}
+function closeAllMo(){
+  document.querySelectorAll('.mo.open').forEach(m=>m.classList.remove('open'));
+  hidePop();
+}
+
+/* ── CMD PALETTE ── */
+const CMDS=[
+  {l:'New Document',k:'⌘N',fn:()=>newDoc()},
+  {l:'Open Document',k:'⌘O',fn:()=>openDocs()},
+  {l:'Save',k:'⌘S',fn:()=>saveDoc()},
+  {l:'Sync to GitHub',k:'⌘⇧S',fn:()=>syncToGH()},
+  {l:'Pull from GitHub',k:'⌘⇧P',fn:()=>pullFromGH()},
+  {l:'Preview',k:'⌘P',fn:()=>togglePreview()},
+  {l:'Focus Mode',k:'⌘F',fn:()=>toggleFocus()},
+  {l:'Annotate Selection',k:'⌘⇧A',fn:()=>openAnnotate()},
+  {l:'Annotations Panel',k:'⌘⇧I',fn:()=>toggleAP()},
+  {l:'Export',k:'⌘E',fn:()=>openExport()},
+  {l:'Settings',k:'⌘,',fn:()=>openSettings()},
+  {l:'Dark Mode',k:'',fn:()=>toggleDark()},
+  {l:'Word Count',k:'',fn:()=>{const t=ta.value.trim();toast((t?t.split(/\s+/).length:0)+' words')}},
+  {l:'Bold',k:'⌘B',fn:()=>{closeMo('cmd-mo');setTimeout(()=>wrapSel('**','**'),50)}},
+  {l:'Italic',k:'⌘I',fn:()=>{closeMo('cmd-mo');setTimeout(()=>wrapSel('*','*'),50)}},
+];
+function openCmd(){
+  document.getElementById('cmd-in').value='';
+  S.cmdIdx=0;
+  filterCmds();
+  openMo('cmd-mo');
+  setTimeout(()=>document.getElementById('cmd-in').focus(),80);
+}
+function filterCmds(){
+  const q=document.getElementById('cmd-in').value.toLowerCase();
+  S.cmdItems=CMDS.filter(c=>!q||c.l.toLowerCase().includes(q));
+  S.cmdIdx=0;
+  renderCmds();
+}
+function renderCmds(){
+  document.getElementById('cmd-list').innerHTML=S.cmdItems.map((c,i)=>
+    `<div class="ci${i===S.cmdIdx?' sel':''}" onclick="runCmd(${i})"><span class="ci-l">${c.l}</span>${c.k?`<span class="ci-k">${c.k}</span>`:''}</div>`
+  ).join('');
+}
+function runCmd(i){
+  const c=S.cmdItems[i]||S.cmdItems[S.cmdIdx];
+  if(!c)return;
+  closeMo('cmd-mo');
+  setTimeout(()=>c.fn(),60);
+}
+function cmdKey(e){
+  if(e.key==='ArrowDown'){e.preventDefault();S.cmdIdx=Math.min(S.cmdIdx+1,S.cmdItems.length-1);renderCmds();}
+  else if(e.key==='ArrowUp'){e.preventDefault();S.cmdIdx=Math.max(S.cmdIdx-1,0);renderCmds();}
+  else if(e.key==='Enter'){e.preventDefault();runCmd(S.cmdIdx);}
+  else if(e.key==='Escape'){closeMo('cmd-mo');}
+}
+
+/* ── OPEN DOCS ── */
+function openDocs(){renderDocList();openMo('mo-open')}
+function renderDocList(){
+  const el=document.getElementById('doc-list');
+  if(!S.docs.length){el.innerHTML='<p style="color:var(--fg3);font-size:13px">No documents</p>';return;}
+  el.innerHTML=S.docs.map(d=>`
+    <div class="di" onclick="pickDoc('${d.id}')">
+      <div><div class="di-t">${esc(d.title||'Untitled')}</div>
+      <div class="di-m">${new Date(d.updated).toLocaleDateString()}</div></div>
+      <button class="di-x" onclick="deleteDoc('${d.id}',event)" title="Delete">✕</button>
+    </div>`).join('');
+}
+function pickDoc(id){closeMo('mo-open');loadDoc(id)}
+
+/* ── EXPORT ── */
+function openExport(){openMo('mo-export')}
+function doExport(mode){
+  const md=ta.value;
+  const title=docTitle(md).replace(/[^a-z0-9]/gi,'_').toLowerCase()||'prose';
+  if(mode==='copy-md'){navigator.clipboard.writeText(md);toast('Markdown copied');}
+  else if(mode==='copy-html'){navigator.clipboard.writeText(mdToHtml(md));toast('HTML copied');}
+  else if(mode==='dl-md'){dlFile(md,'text/markdown',title+'.md');}
+  else if(mode==='dl-html'){dlFile(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${esc(docTitle(md))}</title></head><body style="max-width:680px;margin:60px auto;font-family:Georgia,serif;font-size:20px;line-height:1.9;color:#1a1a1a;padding:0 24px">${mdToHtml(md)}</body></html>`,'text/html',title+'.html');}
+  closeMo('mo-export');
+}
+function dlFile(content,type,name){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type}));
+  a.download=name; a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ── SETTINGS ── */
+function openSettings(){
+  document.getElementById('s-gh-tok').value=S.cfg.ghTok;
+  document.getElementById('s-gh-repo').value=S.cfg.ghRepo;
+  document.getElementById('s-gh-path').value=S.cfg.ghPath;
+  document.getElementById('s-gh-branch').value=S.cfg.ghBranch;
+  document.getElementById('s-tg-tok').value=S.cfg.tgTok;
+  document.getElementById('s-tg-chat').value=S.cfg.tgChat;
+  openMo('mo-settings');
+}
+
+/* ── GITHUB SYNC ── */
+async function syncToGH(){
+  if(!S.cfg.ghTok||!S.cfg.ghRepo||!S.cfg.ghPath){openSettings();toast('Configure GitHub first');return;}
+  dot('dirty'); toast('Syncing…');
+  const url=`https://api.github.com/repos/${S.cfg.ghRepo}/contents/${S.cfg.ghPath}`;
+  const content=btoa(unescape(encodeURIComponent(ta.value)));
+  let sha='';
+  try{
+    const r=await fetch(url,{headers:{'Authorization':'token '+S.cfg.ghTok,'Accept':'application/vnd.github.v3+json'}});
+    if(r.ok){const d=await r.json();sha=d.sha||'';}
+  }catch(e){}
+  try{
+    const body={message:`Update ${S.cfg.ghPath}`,content,branch:S.cfg.ghBranch};
+    if(sha)body.sha=sha;
+    const r=await fetch(url,{method:'PUT',headers:{'Authorization':'token '+S.cfg.ghTok,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},body:JSON.stringify(body)});
+    if(r.ok){dot('ok');toast('Synced to GitHub ✓');}
+    else{const e=await r.json();dot('err');toast('Sync failed: '+(e.message||r.status));}
+  }catch(e){dot('err');toast('Sync error: '+e.message);}
+}
+async function pullFromGH(){
+  if(!S.cfg.ghTok||!S.cfg.ghRepo||!S.cfg.ghPath){openSettings();toast('Configure GitHub first');return;}
+  toast('Pulling…');
+  const url=`https://api.github.com/repos/${S.cfg.ghRepo}/contents/${S.cfg.ghPath}?ref=${S.cfg.ghBranch}`;
+  try{
+    const r=await fetch(url,{headers:{'Authorization':'token '+S.cfg.ghTok,'Accept':'application/vnd.github.v3+json'}});
+    if(!r.ok){toast('Pull failed: '+r.status);dot('err');return;}
+    const d=await r.json();
+    const md=decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))));
+    ta.value=md; ta.dispatchEvent(new Event('input'));
+    saveDoc(true); dot('ok'); toast('Pulled from GitHub ✓');
+  }catch(e){dot('err');toast('Pull error: '+e.message);}
+}
+
+/* ── ANNOTATIONS ── */
+let annStart=0,annEnd=0,annQuote='';
+function openAnnotate(){
+  const s=ta.selectionStart,e=ta.selectionEnd;
+  if(s===e){toast('Select text first');return;}
+  annStart=s; annEnd=e; annQuote=ta.value.substring(s,e);
+  document.getElementById('ann-sel').textContent='"'+annQuote.substring(0,120)+(annQuote.length>120?'…':'')+'"';
+  document.getElementById('ann-note').value='';
+  document.getElementById('ann-atlas-chk').checked=false;
+  document.getElementById('ann-atlas-btn').style.display='none';
+  openMo('mo-ann');
+  setTimeout(()=>document.getElementById('ann-note').focus(),80);
+}
+function toggleAtlasBtn(){
+  const checked=document.getElementById('ann-atlas-chk').checked;
+  document.getElementById('ann-atlas-btn').style.display=checked?'inline-block':'none';
+}
+function saveAnn(sendToAtlas){
+  const note=document.getElementById('ann-note').value.trim();
+  if(!note){toast('Note cannot be empty');return;}
+  const atlas=sendToAtlas||document.getElementById('ann-atlas-chk').checked;
+  const id='ann_'+Date.now();
+  const ann={id,s:annStart,e:annEnd,quote:annQuote.substring(0,80),note,atlas,created:Date.now()};
+  if(!S.anns[S.cur])S.anns[S.cur]=[];
+  S.anns[S.cur].push(ann);
+  saveAnns(); closeMo('mo-ann');
+  updateOv(); renderAnnList();
+  if(atlas&&sendToAtlas)sendAnnToAtlas(ann);
+  toast(atlas&&sendToAtlas?'Sent to Atlas 🦉':'Annotation saved');
+}
+function deleteAnn(id){
+  if(!S.cur||!S.anns[S.cur])return;
+  S.anns[S.cur]=S.anns[S.cur].filter(a=>a.id!==id);
+  saveAnns(); updateOv(); renderAnnList();
+  toast('Annotation deleted');
+}
+function renderAnnList(){
+  const anns=annForDoc();
+  const el=document.getElementById('ap-list');
+  if(!anns.length){el.innerHTML='<p style="color:var(--fg3);font-size:13px">No annotations</p>';return;}
+  el.innerHTML=anns.map(a=>`
+    <div class="ai${a.atlas?' atlas':''}">
+      <div class="ai-q">"${esc(a.quote||'')}"</div>
+      <div class="ai-n">${esc(a.note)}</div>
+      <div class="ai-m">${new Date(a.created).toLocaleDateString()}${a.atlas?' (sent to Atlas)':''}</div>
+      <div style="display:flex;gap:10px;margin-top:4px">
+        <button class="ai-del" onclick="deleteAnn('${a.id}')">delete</button>
+        ${!a.atlas?`<button class="ai-del" style="color:#059669" onclick="sendAnnToAtlasById('${a.id}')">🦉 send to atlas</button>`:''}
+      </div>
+    </div>`).join('');
+}
+function toggleAP(){
+  const ap=document.getElementById('ap');
+  const isOpen=ap.classList.toggle('open');
+  if(isOpen)renderAnnList();
+}
+
+/* ── SEND TO ATLAS (Telegram) ── */
+async function sendAnnToAtlas(ann){
+  if(!S.cfg.tgTok||!S.cfg.tgChat){
+    toast('Configure Telegram in settings to send to Atlas');
+    return;
+  }
+  const docTitle_=docTitle(ta.value);
+  const msg=`📝 *Annotation from Prose*\n\n*Document:* ${docTitle_}\n\n*Quoted text:*\n_"${ann.quote}"_\n\n*Note:*\n${ann.note}\n\n—`;
+  try{
+    const r=await fetch(`https://api.telegram.org/bot${S.cfg.tgTok}/sendMessage`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chat_id:S.cfg.tgChat,text:msg,parse_mode:'Markdown'})
+    });
+    const d=await r.json();
+    if(d.ok){
+      // mark as sent
+      const a=annForDoc().find(x=>x.id===ann.id);
+      if(a)a.atlasSent=true;
+      saveAnns(); renderAnnList();
+    }
+    else toast('Telegram error: '+d.description);
+  }catch(e){toast('Send failed: '+e.message);}
+}
+function sendAnnToAtlasById(id){
+  const a=annForDoc().find(x=>x.id===id);
+  if(!a)return;
+  a.atlas=true; saveAnns(); renderAnnList();
+  sendAnnToAtlas(a);
+}
+
+/* ── POPOVER ── */
+function showPopover(e){
+  const aid=e.target.dataset.aid;
+  if(!aid)return;
+  const a=annForDoc().find(x=>x.id===aid);
+  if(!a)return;
+  const pop=document.getElementById('pop');
+  pop.textContent=a.note+(a.atlas?' 🦉':'');
+  pop.style.display='block';
+  pop.style.left=Math.min(e.clientX+10,window.innerWidth-280)+'px';
+  pop.style.top=(e.clientY-44)+'px';
+}
+function showAnnotationDetail(a,e){
+  const pop=document.getElementById('pop');
+  pop.innerHTML=`<strong style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--fg2)">Annotation</strong><br><span style="font-style:italic">"${esc(a.quote||'')}"</span><br><br>${esc(a.note)}${a.atlas?'<br><span style="font-size:11px;color:#059669">🦉 Atlas</span>':''}`;
+  pop.style.display='block';
+  pop.style.left=Math.min(e.clientX+10,window.innerWidth-280)+'px';
+  pop.style.top=(e.clientY-50)+'px';
+  setTimeout(hidePop,3000);
+}
+function hidePopover(){hidePop()}
+function hidePop(){document.getElementById('pop').style.display='none'}
+
+/* ── THEME ── */
+function applyTheme(){document.documentElement.setAttribute('data-theme',S.dark?'dark':'');}
+
+/* ── INIT ── */
+init();
+</script>
+</body>
+</html>
