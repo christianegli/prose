@@ -1429,63 +1429,91 @@ async function loadFBTree(){
   }
 }
 let fbCollapsed={};
+
+/* Build a nested tree from flat file list */
+function buildTree(files){
+  const root={dirs:{},files:[]};
+  files.forEach(f=>{
+    const parts=f.path.split('/');
+    let node=root;
+    for(let i=0;i<parts.length-1;i++){
+      const p=parts[i];
+      if(!node.dirs[p]) node.dirs[p]={dirs:{},files:[],path:parts.slice(0,i+1).join('/')};
+      node=node.dirs[p];
+    }
+    node.files.push(f);
+  });
+  return root;
+}
+
+let _fbGid=0;
 function renderFBTree(){
   const el=document.getElementById('fb-tree');
   if(!fbTree.length){el.innerHTML='<div style="padding:16px;color:var(--fg3);font-size:12px">No .md or .txt files found.</div>';return;}
-  // Group by top-level directory
-  const dirs={};
-  fbTree.forEach(f=>{
-    const parts=f.path.split('/');
-    const dir=parts.length>1?parts[0]:'.';
-    if(!dirs[dir])dirs[dir]=[];
-    dirs[dir].push(f);
-  });
+  _fbGid=0;
+  const tree=buildTree(fbTree);
   const active=S.cfg.ghPath||'';
-  let html='';
-  // Root-level files first
-  if(dirs['.']){
-    dirs['.'].forEach(f=>{
-      const name=f.path.split('/').pop();
-      const isActive=f.path===active;
-      html+=`<div class="fbi${isActive?' active':''}" onclick="fbOpenFile('${esc(f.path)}')" title="${esc(f.path)}"><span class="fbi-icon">📄</span><span class="fbi-name">${esc(name)}</span></div>`;
-    });
-  }
-  // Folders
-  Object.keys(dirs).filter(d=>d!=='.').sort().forEach((dir,idx)=>{
-    const collapsed=fbCollapsed[dir]||false;
-    const gid='fbg-'+idx;
-    html+=`<div class="fbi fbi-dir${collapsed?' collapsed':''}" data-dir="${esc(dir)}" data-gid="${gid}" onclick="toggleFBDir(this)">
-      <span class="fbi-dir-arrow">▾</span>
-      <span>${esc(dir)}</span>
-      <span style="margin-left:auto;color:var(--fg3);font-size:10px;font-weight:400;letter-spacing:0">${dirs[dir].length}</span>
-    </div>`;
-    const maxH=dirs[dir].length*34+8;
-    html+=`<div class="fbi-group${collapsed?' collapsed':''}" id="${gid}" style="max-height:${collapsed?0:maxH}px">`;
-    dirs[dir].forEach(f=>{
-      const name=f.path.split('/').pop();
-      // Show sub-path relative to top dir
-      const subParts=f.path.split('/').slice(1);
-      const indent=subParts.length>1?8+((subParts.length-1)*10):8;
-      const isActive=f.path===active;
-      html+=`<div class="fbi${isActive?' active':''}" style="padding-left:${indent+28}px" onclick="fbOpenFile('${esc(f.path)}')" title="${esc(f.path)}">
-        <span class="fbi-icon">📄</span>
-        <span class="fbi-name">${esc(name)}</span>
-      </div>`;
-    });
-    html+='</div>';
-  });
-  el.innerHTML=html;
+  el.innerHTML=renderFBNode(tree,active,0);
 }
+
+function renderFBNode(node,active,depth){
+  let html='';
+  const pad=depth*14;
+  // Files at this level
+  node.files.forEach(f=>{
+    const name=f.path.split('/').pop();
+    const isActive=f.path===active;
+    html+=`<div class="fbi${isActive?' active':''}" style="padding-left:${16+pad}px" onclick="fbOpenFile('${esc(f.path)}')" title="${esc(f.path)}">
+      <span class="fbi-icon" style="opacity:.5">📄</span>
+      <span class="fbi-name">${esc(name)}</span>
+    </div>`;
+  });
+  // Subdirectories
+  Object.keys(node.dirs).sort().forEach(name=>{
+    const sub=node.dirs[name];
+    const key=sub.path;
+    const collapsed=fbCollapsed[key]!==false; // default collapsed for deep, open for top-level
+    if(depth===0) fbCollapsed[key]=fbCollapsed[key]===undefined?false:fbCollapsed[key];
+    const isColl=fbCollapsed[key]||false;
+    const gid='fbg-'+(++_fbGid);
+    const count=countFiles(sub);
+    html+=`<div class="fbi fbi-dir${isColl?' collapsed':''}" data-dir="${esc(key)}" data-gid="${gid}" style="padding-left:${10+pad}px" onclick="toggleFBDir(this)">
+      <span class="fbi-dir-arrow">▾</span>
+      <span>${esc(name)}</span>
+      <span style="margin-left:auto;color:var(--fg3);font-size:10px;font-weight:400;letter-spacing:0">${count}</span>
+    </div>`;
+    const inner=renderFBNode(sub,active,depth+1);
+    const estH=(count*32+Object.keys(sub.dirs).length*34)+16;
+    html+=`<div class="fbi-group${isColl?' collapsed':''}" id="${gid}" style="max-height:${isColl?0:estH}px">${inner}</div>`;
+  });
+  return html;
+}
+
+function countFiles(node){
+  let n=node.files.length;
+  Object.values(node.dirs).forEach(d=>n+=countFiles(d));
+  return n;
+}
+
 function toggleFBDir(el){
-  const dir=el.dataset.dir;
+  const key=el.dataset.dir;
   const gid=el.dataset.gid;
   const grpEl=document.getElementById(gid);
   if(!grpEl)return;
-  fbCollapsed[dir]=!fbCollapsed[dir];
-  const collapsed=fbCollapsed[dir];
+  fbCollapsed[key]=!fbCollapsed[key];
+  const collapsed=fbCollapsed[key];
   el.classList.toggle('collapsed',collapsed);
   grpEl.classList.toggle('collapsed',collapsed);
   grpEl.style.maxHeight=collapsed?'0':(grpEl.scrollHeight+'px');
+  // Also expand all parents by recalculating heights up the tree
+  if(!collapsed){
+    let p=grpEl.parentElement;
+    while(p){
+      if(p.classList&&p.classList.contains('fbi-group'))
+        p.style.maxHeight=p.scrollHeight+'px';
+      p=p.parentElement;
+    }
+  }
 }
 async function fbOpenFile(path){
   if(!S.cfg.ghTok||!S.cfg.ghRepo)return;
