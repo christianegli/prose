@@ -189,6 +189,14 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
 .stat-val{font-size:15px;font-weight:600;color:var(--fg);font-variant-numeric:tabular-nums}
 .stat-section{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--fg3);margin:16px 0 6px}
 
+/* ── SETTINGS TABS ── */
+.stab{background:none;border:none;border-bottom:2px solid transparent;padding:12px 14px;font-family:var(--font);font-size:12px;color:var(--fg2);cursor:pointer;transition:color .15s,border-color .15s;margin-bottom:-1px;white-space:nowrap}
+.stab:hover{color:var(--fg)}
+.stab.active{color:var(--fg);border-bottom-color:var(--accent)}
+.spanel{animation:fadeIn .15s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+.shead{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--fg2);margin-bottom:12px}
+
 /* ── AUTOCORRECT HINT ── */
 #ac-hint{position:fixed;bottom:60px;left:50%;transform:translateX(-50%);
   background:rgba(128,128,128,.12);backdrop-filter:blur(4px);
@@ -304,100 +312,121 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
 
 <!-- Settings -->
 <div class="mo" id="mo-settings" onclick="moOut(event,'mo-settings')">
-  <div class="mbox" style="width:540px">
-    <h3>Settings</h3>
+  <div class="mbox" style="width:560px;padding:0;overflow:hidden">
 
-    <!-- GitHub — stepped onboarding -->
-    <div style="margin-bottom:24px">
-      <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--fg2);margin-bottom:14px">GitHub Sync</p>
+    <!-- Tab bar -->
+    <div style="display:flex;border-bottom:1px solid var(--fg3);padding:0 4px">
+      <button class="stab active" data-tab="writing"  onclick="switchStab(this,'writing')">✍️ Writing</button>
+      <button class="stab"        data-tab="github"   onclick="switchStab(this,'github')">⚙ GitHub</button>
+      <button class="stab"        data-tab="appear"   onclick="switchStab(this,'appear')">🎨 Appearance</button>
+      <button class="stab"        data-tab="atlas"    onclick="switchStab(this,'atlas')">🦉 Atlas</button>
+    </div>
 
-      <!-- Step 1: token -->
-      <div id="gh-step-tok">
-        <label>Personal Access Token</label>
-        <div style="display:flex;gap:8px">
-          <input class="fi" id="s-gh-tok" type="password" placeholder="ghp_… (needs repo scope)" style="margin-bottom:0;flex:1">
-          <button class="btn" style="flex-shrink:0;white-space:nowrap" onclick="ghConnect()">Connect</button>
+    <!-- Tab panels -->
+    <div style="padding:22px 24px;overflow-y:auto;max-height:68vh">
+
+      <!-- ── WRITING ── -->
+      <div class="spanel" id="sp-writing">
+        <div style="margin-bottom:22px">
+          <p class="shead">Word Goal</p>
+          <label>Daily target (0 = off)</label>
+          <input class="fi" id="s-wg" type="number" min="0" placeholder="500">
         </div>
-        <p style="font-size:11px;color:var(--fg3);margin-top:6px">Create one at <a href="https://github.com/settings/tokens/new?scopes=repo" target="_blank" style="color:var(--accent)">github.com/settings/tokens/new</a> — tick <strong>repo</strong> scope.</p>
+        <div style="margin-bottom:22px">
+          <p class="shead">Auto-Commit</p>
+          <label>Push to GitHub every (minutes, 0 = off)</label>
+          <input class="fi" id="s-ac-mins" type="number" min="0" max="120" placeholder="15">
+          <p style="font-size:11px;color:var(--fg3);margin-top:-8px">Queued annotations are sent after each commit.</p>
+        </div>
+        <div>
+          <p class="shead">Spellcheck</p>
+          <label>Language</label>
+          <select class="fi" id="s-lang-sel" onchange="setLangFromSel()">
+            <option value="0">English (EN)</option>
+            <option value="1">German (DE)</option>
+            <option value="2">English + German</option>
+          </select>
+        </div>
       </div>
 
-      <!-- Step 2: repo picker (hidden until connected) -->
-      <div id="gh-step-repo" style="display:none;margin-top:12px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-          <span id="gh-user-badge" style="font-size:12px;color:var(--green)">✓ Connected</span>
-          <button onclick="ghDisconnect()" style="background:none;border:none;color:var(--fg3);cursor:pointer;font-size:11px;padding:0;font-family:var(--font)">disconnect</button>
+      <!-- ── GITHUB ── -->
+      <div class="spanel" id="sp-github" style="display:none">
+        <div id="gh-step-tok">
+          <p class="shead">Connect</p>
+          <label>Personal Access Token</label>
+          <div style="display:flex;gap:8px">
+            <input class="fi" id="s-gh-tok" type="password" placeholder="ghp_… (needs repo scope)" style="margin-bottom:0;flex:1">
+            <button class="btn" style="flex-shrink:0" onclick="ghConnect()">Connect</button>
+          </div>
+          <p style="font-size:11px;color:var(--fg3);margin-top:6px">Create at <a href="https://github.com/settings/tokens/new?scopes=repo" target="_blank" style="color:var(--accent)">github.com/settings/tokens/new</a> — tick <strong>repo</strong>.</p>
         </div>
-        <label>Repository</label>
-        <div style="display:flex;gap:8px;margin-bottom:8px">
-          <select class="fi" id="s-gh-repo-sel" style="margin-bottom:0;flex:1" onchange="ghPickRepo()">
-            <option value="">— choose a repo —</option>
-          </select>
-          <button class="btn btn-g" style="flex-shrink:0;font-size:12px" onclick="ghLoadRepos()" title="Refresh repos">↻</button>
-        </div>
-        <div id="gh-step-branch" style="display:none">
-          <label>Branch</label>
-          <select class="fi" id="s-gh-branch-sel" style="margin-bottom:8px" onchange="ghPickBranch()">
-            <option value="">— choose a branch —</option>
-          </select>
-        </div>
-        <div id="gh-step-file" style="display:none">
-          <label>File <span style="font-weight:400;font-size:10px;color:var(--fg3)">(or type a new path)</span></label>
-          <div style="display:flex;gap:8px;margin-bottom:4px">
-            <select class="fi" id="s-gh-file-sel" style="margin-bottom:0;flex:1" onchange="ghPickFile()">
-              <option value="">— choose a file —</option>
-              <option value="__new__">+ New file…</option>
+        <div id="gh-step-repo" style="display:none;margin-top:16px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+            <span id="gh-user-badge" style="font-size:12px;color:#4ade80">✓ Connected</span>
+            <button onclick="ghDisconnect()" style="background:none;border:none;color:var(--fg3);cursor:pointer;font-size:11px;padding:0;font-family:var(--font)">disconnect</button>
+          </div>
+          <label>Repository</label>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <select class="fi" id="s-gh-repo-sel" style="margin-bottom:0;flex:1" onchange="ghPickRepo()">
+              <option value="">— choose —</option>
+            </select>
+            <button class="btn btn-g" style="flex-shrink:0;font-size:12px" onclick="ghLoadRepos()" title="Refresh">↻</button>
+          </div>
+          <div id="gh-step-branch" style="display:none">
+            <label>Branch</label>
+            <select class="fi" id="s-gh-branch-sel" style="margin-bottom:8px" onchange="ghPickBranch()">
+              <option value="">— choose —</option>
             </select>
           </div>
-          <input class="fi" id="s-gh-path" placeholder="e.g. writing/chapter-1.md" style="display:none">
-          <!-- summary chip -->
-          <div id="gh-summary" style="display:none;margin-top:8px;background:rgba(128,128,128,.07);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--fg2);line-height:1.6"></div>
+          <div id="gh-step-file" style="display:none">
+            <label>File <span style="font-weight:400;font-size:10px;color:var(--fg3)">(or type new path)</span></label>
+            <select class="fi" id="s-gh-file-sel" style="margin-bottom:6px" onchange="ghPickFile()">
+              <option value="">— choose —</option>
+              <option value="__new__">+ New file…</option>
+            </select>
+            <input class="fi" id="s-gh-path" placeholder="e.g. writing/chapter-1.md" style="display:none">
+            <div id="gh-summary" style="display:none;background:rgba(128,128,128,.07);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--fg2);line-height:1.6"></div>
+          </div>
+          <input type="hidden" id="s-gh-repo">
+          <input type="hidden" id="s-gh-branch">
         </div>
-        <!-- hidden input kept for compat -->
-        <input type="hidden" id="s-gh-repo">
-        <input type="hidden" id="s-gh-branch">
       </div>
-    </div>
 
-    <!-- Typography -->
-    <div style="margin-bottom:24px">
-      <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--fg2);margin-bottom:16px">Typography</p>
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
-        <label style="margin:0">Font size</label>
-        <span id="s-sz-val" style="font-size:12px;color:var(--fg2);font-variant-numeric:tabular-nums">21px</span>
+      <!-- ── APPEARANCE ── -->
+      <div class="spanel" id="sp-appear" style="display:none">
+        <div style="margin-bottom:24px">
+          <p class="shead">Theme</p>
+          <div class="th-grid" id="th-grid-s"></div>
+        </div>
+        <div style="margin-bottom:22px">
+          <p class="shead">Typography</p>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+            <label style="margin:0">Font size</label>
+            <span id="s-sz-val" style="font-size:12px;color:var(--fg2)">21px</span>
+          </div>
+          <input type="range" id="s-sz" min="14" max="32" step="1" value="21" oninput="liveTypo()" style="width:100%;margin-bottom:16px;accent-color:var(--accent)">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+            <label style="margin:0">Line width</label>
+            <span id="s-lw-val" style="font-size:12px;color:var(--fg2)">680px</span>
+          </div>
+          <input type="range" id="s-lw" min="400" max="960" step="20" value="680" oninput="liveTypo()" style="width:100%;margin-bottom:4px;accent-color:var(--accent)">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--fg3)"><span>narrow</span><span>wide</span></div>
+        </div>
       </div>
-      <input type="range" id="s-sz" min="14" max="32" step="1" value="21" oninput="liveTypo()" style="width:100%;margin-bottom:16px;accent-color:var(--accent)">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
-        <label style="margin:0">Line width</label>
-        <span id="s-lw-val" style="font-size:12px;color:var(--fg2);font-variant-numeric:tabular-nums">680px</span>
+
+      <!-- ── ATLAS ── -->
+      <div class="spanel" id="sp-atlas" style="display:none">
+        <p class="shead">Telegram</p>
+        <p style="font-size:12px;color:var(--fg2);margin-bottom:14px">Annotations are sent to Atlas after each commit — with document context and commit SHA so Atlas can fetch the exact version and pass it to Quill for review.</p>
+        <label>Bot Token</label>
+        <input class="fi" id="s-tg-tok" type="password" placeholder="bot token">
+        <label>Chat ID</label>
+        <input class="fi" id="s-tg-chat" placeholder="7700527888">
       </div>
-      <input type="range" id="s-lw" min="400" max="960" step="20" value="680" oninput="liveTypo()" style="width:100%;margin-bottom:4px;accent-color:var(--accent)">
-      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--fg3)"><span>narrow</span><span>wide</span></div>
-    </div>
 
-    <!-- Writing Goals -->
-    <div style="margin-bottom:22px">
-      <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--fg2);margin-bottom:14px">Writing Goals</p>
-      <label>Daily word goal (0 = off)</label>
-      <input class="fi" id="s-wg" type="number" min="0" placeholder="500">
-    </div>
+    </div><!-- /panel body -->
 
-    <!-- Auto-Commit -->
-    <div style="margin-bottom:22px">
-      <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--fg2);margin-bottom:14px">Auto-Commit</p>
-      <label>Auto-commit every (minutes, 0 = off)</label>
-      <input class="fi" id="s-ac-mins" type="number" min="0" max="120" placeholder="15">
-    </div>
-
-    <!-- Atlas -->
-    <div style="margin-bottom:22px">
-      <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--fg2);margin-bottom:14px">Atlas Integration</p>
-      <label>Telegram Bot Token</label>
-      <input class="fi" id="s-tg-tok" type="password" placeholder="bot token">
-      <label>Telegram Chat ID</label>
-      <input class="fi" id="s-tg-chat" placeholder="7700527888">
-    </div>
-
-    <div class="brow">
+    <div class="brow" style="padding:0 24px 20px;border-top:1px solid var(--fg3);padding-top:16px;margin-top:0">
       <button class="btn" onclick="saveSettings()">Save</button>
       <button class="btn btn-g" onclick="closeMo('mo-settings')">Cancel</button>
     </div>
@@ -996,7 +1025,8 @@ function dlFile(content,type,name){
 }
 
 /* ── SETTINGS ── */
-function openSettings(){
+function openSettings(tab){
+  // Populate all fields
   document.getElementById('s-gh-tok').value=S.cfg.ghTok||'';
   document.getElementById('s-gh-repo').value=S.cfg.ghRepo||'';
   document.getElementById('s-gh-branch').value=S.cfg.ghBranch||'main';
@@ -1005,19 +1035,24 @@ function openSettings(){
   document.getElementById('s-ac-mins').value=S.cfg.autoCommitMins||0;
   document.getElementById('s-tg-tok').value=S.cfg.tgTok||'';
   document.getElementById('s-tg-chat').value=S.cfg.tgChat||'';
-  // Restore connected state
+  document.getElementById('s-lang-sel').value=langIdx;
+  // GitHub connected state
   if(S.cfg.ghTok){
     document.getElementById('gh-step-repo').style.display='block';
     document.getElementById('gh-user-badge').textContent='✓ Connected';
     ghLoadRepos(S.cfg.ghTok);
   }
-  // populate sliders with current values
+  // Sliders
   const curSz=localStorage.getItem('prose_sz')||'21';
   const curLw=localStorage.getItem('prose_lw')||'680';
   document.getElementById('s-sz').value=curSz;
   document.getElementById('s-lw').value=curLw;
   document.getElementById('s-sz-val').textContent=curSz+'px';
   document.getElementById('s-lw-val').textContent=curLw+'px';
+  // Switch to requested tab (default: writing)
+  const targetTab=tab||'writing';
+  const tabEl=document.querySelector(`.stab[data-tab="${targetTab}"]`);
+  if(tabEl) switchStab(tabEl,targetTab);
   openMo('mo-settings');
 }
 function commitNow(){closeMo('mo-ann');syncToGH(false);}
@@ -1511,6 +1546,19 @@ function renderStats(){
   `;
 }
 
+/* ── SETTINGS TABS ── */
+function switchStab(el,tab){
+  document.querySelectorAll('.stab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.spanel').forEach(p=>p.style.display='none');
+  el.classList.add('active');
+  document.getElementById('sp-'+tab).style.display='block';
+  if(tab==='appear'){renderThemeGrid('th-grid-s');}
+}
+function setLangFromSel(){
+  langIdx=parseInt(document.getElementById('s-lang-sel').value)||0;
+  applyLang();
+}
+
 /* ── GITHUB ONBOARDING ── */
 async function ghConnect(){
   const tok=document.getElementById('s-gh-tok').value.trim();
@@ -1826,16 +1874,25 @@ function setTheme(id){
   renderThemeGrid();
 }
 function openThemePicker(){
-  renderThemeGrid();
-  openMo('mo-theme');
+  // Open settings on Appearance tab instead of separate modal
+  openSettings('appear');
 }
-function renderThemeGrid(){
+function renderThemeGrid(targetId){
+  const id=targetId||'th-grid';
+  const el=document.getElementById(id);
+  if(!el)return;
   const cur=S.theme||'auto';
-  document.getElementById('th-grid').innerHTML=THEMES.map(t=>`
-    <div class="th${t.id===cur?' active':''}" onclick="setTheme('${t.id}')">
+  el.innerHTML=THEMES.map(t=>`
+    <div class="th${t.id===cur?' active':''}" onclick="setTheme('${t.id}','${id}')">
       <div class="th-swatch" style="background:${t.bg};color:${t.fg}">${t.sample}</div>
       <div class="th-name">${t.name}</div>
     </div>`).join('');
+}
+function setTheme(id,gridId){
+  S.theme=id;
+  localStorage.setItem('prose_theme',id);
+  applyTheme();
+  renderThemeGrid(gridId||'th-grid-s');
 }
 // listen for system theme changes when in auto mode
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{
