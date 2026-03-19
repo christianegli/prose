@@ -42,6 +42,8 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
 #ta,#ov{font-family:var(--font);font-size:var(--sz);line-height:var(--lh);white-space:pre-wrap;word-wrap:break-word;word-break:break-word;width:100%;padding:0;border:none;outline:none;background:transparent;display:block;letter-spacing:0.01em}
 #ta{color:transparent;caret-color:var(--fg);resize:none;overflow:hidden;position:relative;z-index:2;min-height:calc(100vh - 240px);-webkit-font-smoothing:antialiased}
 #ta::selection{background:var(--sel)}
+#ta::placeholder{transition:opacity .6s ease;color:var(--fg3)}
+#ta.ph-fade::placeholder{opacity:0}
 #ov{position:absolute;top:var(--vpad);left:24px;right:24px;width:calc(100% - 48px);color:var(--fg);pointer-events:none;z-index:1}
 /* syntax classes */
 .h1{font-size:1.45em;font-weight:700}.h2{font-size:1.2em;font-weight:700}.h3{font-size:1.05em;font-weight:600}
@@ -574,6 +576,7 @@ function init(){
   updateGoal();
   initLang();
   loadTypo();
+  rotatePlaceholder();
   ta.focus();
 }
 
@@ -2033,6 +2036,41 @@ function setTheme(id,gridId){
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{
   if((S.theme||'auto')==='auto') applyTheme();
 });
+
+/* ── PLACEHOLDER ROTATION ── */
+const PLACEHOLDERS=[
+  'Once upon a time…',
+  'The page is more patient than any audience.',
+  'The first draft is just you telling yourself the story.',
+  'Begin anywhere.',
+  'In the beginning was the word.',
+  'It was the best of times…',
+  'All great things begin with a blank page and a little courage.',
+  'The scariest moment is always just before you start.',
+  'Write drunk, edit sober. — Hemingway (probably didn\'t say this)',
+  'A writer only begins a book. A reader finishes it.',
+  'You can always edit a bad page. You can\'t edit a blank one.',
+  'Fill the page with the breathings of your heart.',
+  'There is no greater agony than bearing an untold story inside you.',
+  'I am not afraid of storms, for I am learning how to sail my ship.',
+  'What would you write if no one would ever read it?',
+  'The blank page: your best collaborator and worst critic.',
+  'Every word you write is a word that wasn\'t there before.',
+  'Start with one true sentence.',
+  'This page has been waiting for you.',
+  'The cure for writer\'s block is to write badly on purpose.',
+];
+let _phIdx=Math.floor(Math.random()*PLACEHOLDERS.length);
+function rotatePlaceholder(){
+  if(ta.value) return;
+  ta.classList.add('ph-fade');
+  setTimeout(()=>{
+    _phIdx=(_phIdx+1)%PLACEHOLDERS.length;
+    ta.setAttribute('placeholder',PLACEHOLDERS[_phIdx]);
+    ta.classList.remove('ph-fade');
+  },600);
+}
+setInterval(()=>{ if(!ta.value) rotatePlaceholder(); }, 5000);
 
 /* ── PWA ── */
 if('serviceWorker' in navigator){
