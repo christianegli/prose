@@ -101,8 +101,15 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
 .ci-k{font-size:10px;color:var(--fg3);font-family:monospace;background:rgba(128,128,128,.1);padding:2px 6px;border-radius:3px}
 /* annotations panel */
 #ap-trigger{position:fixed;top:0;right:0;width:18px;height:100vh;z-index:190}
-#ap{position:fixed;top:0;right:-400px;width:360px;height:100vh;background:var(--bg);border-left:1px solid var(--fg3);padding:28px 20px;overflow-y:auto;z-index:200;transition:right .25s ease;font-size:13px}
+#ap{position:fixed;top:0;right:-380px;width:340px;height:100vh;background:var(--bg);border-left:1px solid var(--fg3);padding:28px 20px;overflow-y:auto;z-index:200;transition:right .25s ease;font-size:13px}
 #ap.open{right:0}
+
+/* settings panel */
+#mo-settings{position:fixed;top:0;right:-440px;width:400px;height:100vh;background:var(--bg);border-left:1px solid var(--fg3);z-index:202;display:flex;flex-direction:column;transition:right .25s ease;font-size:13px}
+#mo-settings.open{right:0}
+#sp-tabs{display:flex;border-bottom:1px solid var(--fg3);padding:0 4px;flex-shrink:0;overflow-x:auto}
+#sp-body{flex:1;overflow-y:auto;padding:20px 22px}
+#sp-foot{padding:14px 22px;border-top:1px solid var(--fg3);flex-shrink:0;display:flex;gap:8px}
 #ap h3{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--fg2);margin-bottom:18px}
 .ai{padding:12px 0;border-bottom:1px solid rgba(128,128,128,.1)}
 .ai-q{font-style:italic;color:var(--fg2);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:4px}
@@ -330,19 +337,16 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
   </div>
 </div>
 
-<!-- Settings -->
-<div class="mo" id="mo-settings" onclick="moOut(event,'mo-settings')">
-  <div class="mbox" style="width:580px;padding:0;overflow:hidden">
-
-    <div style="display:flex;border-bottom:1px solid var(--fg3);padding:0 4px;overflow-x:auto">
+<!-- Settings panel (slide-in, no overlay) -->
+<div id="mo-settings">
+  <div id="sp-tabs">
       <button class="stab" data-tab="writing"  onclick="switchStab(this,'writing')">Writing</button>
       <button class="stab" data-tab="github"   onclick="switchStab(this,'github')">GitHub</button>
       <button class="stab" data-tab="theme"    onclick="switchStab(this,'theme')">Theme</button>
       <button class="stab" data-tab="typo"     onclick="switchStab(this,'typo')">Typography</button>
       <button class="stab" data-tab="atlas"    onclick="switchStab(this,'atlas')">Atlas</button>
-    </div>
-
-    <div style="padding:20px 24px;overflow-y:auto;max-height:65vh">
+  </div>
+  <div id="sp-body">
 
       <!-- Writing -->
       <div class="spanel" id="sp-writing" style="display:none">
@@ -426,12 +430,10 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
         <p style="font-size:11px;color:var(--fg3);margin-top:-6px">Annotations are dispatched to Atlas via Telegram after each commit, with full document context and commit SHA.</p>
       </div>
 
-    </div>
-
-    <div style="display:flex;gap:8px;padding:14px 24px;border-top:1px solid var(--fg3)">
-      <button class="btn" onclick="saveSettings()">Save</button>
-      <button class="btn btn-g" onclick="closeMo('mo-settings')">Cancel</button>
-    </div>
+  </div><!-- /sp-body -->
+  <div id="sp-foot">
+    <button class="btn" onclick="saveSettings()">Save</button>
+    <button class="btn btn-g" onclick="closeSettings()">Close</button>
   </div>
 </div>
 
@@ -609,7 +611,7 @@ function saveSettings(){
   S.cfg.tgChat=document.getElementById('s-tg-chat').value.trim();
   localStorage.setItem('prose_cfg',JSON.stringify(S.cfg));
   saveTypo();
-  closeMo('mo-settings');
+  closeSettings();
   scheduleAutoCommit();
   toast('Settings saved');
 }
@@ -921,7 +923,7 @@ ta.addEventListener('keyup',e=>{
   }
 });
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){closeAllMo();}
+  if(e.key==='Escape'){closeAllMo();closeSettings();}
   // Annotation keyboard nav when panel is open
   const ap=document.getElementById('ap');
   if(ap.classList.contains('open')&&document.activeElement!==ta){
@@ -1137,8 +1139,9 @@ function openSettings(tab){
   if(tabEl) tabEl.classList.add('active');
   if(panel) panel.style.display='block';
   if(targetTab==='theme') renderThemeGrid('th-grid-s');
-  openMo('mo-settings');
+  document.getElementById('mo-settings').classList.add('open');
 }
+function closeSettings(){document.getElementById('mo-settings').classList.remove('open');}
 function commitNow(){closeMo('mo-ann');syncToGH(false);}
 
 /* ── GITHUB SYNC ── */
@@ -1318,13 +1321,15 @@ function hoverOpenAP(){
   ap.classList.add('open');
   renderAnnList();
 }
-// Close annotations panel on outside click (same as file browser)
+// Close panels on outside click
 document.addEventListener('click',e=>{
   const ap=document.getElementById('ap');
   const trigger=document.getElementById('ap-trigger');
-  if(ap.classList.contains('open')&&!ap.contains(e.target)&&!trigger.contains(e.target)){
+  if(ap.classList.contains('open')&&!ap.contains(e.target)&&!trigger.contains(e.target))
     ap.classList.remove('open');
-  }
+  const ms=document.getElementById('mo-settings');
+  if(ms.classList.contains('open')&&!ms.contains(e.target))
+    ms.classList.remove('open');
 });
 
 /* ── SEND TO ATLAS (Telegram) — post-commit only ── */
