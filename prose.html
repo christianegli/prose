@@ -100,6 +100,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
 .ci-l{font-size:13px}
 .ci-k{font-size:10px;color:var(--fg3);font-family:monospace;background:rgba(128,128,128,.1);padding:2px 6px;border-radius:3px}
 /* annotations panel */
+#ap-trigger{position:fixed;top:0;right:0;width:18px;height:100vh;z-index:190}
 #ap{position:fixed;top:0;right:-400px;width:360px;height:100vh;background:var(--bg);border-left:1px solid var(--fg3);padding:28px 20px;overflow-y:auto;z-index:200;transition:right .25s ease;font-size:13px}
 #ap.open{right:0}
 #ap h3{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--fg2);margin-bottom:18px}
@@ -451,6 +452,9 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
     </div>
   </div>
 </div>
+
+<!-- Annotations hover trigger -->
+<div id="ap-trigger" onmouseenter="hoverOpenAP()"></div>
 
 <!-- Annotations Panel -->
 <div id="ap">
@@ -1325,6 +1329,21 @@ function toggleAP(){
   const isOpen=ap.classList.toggle('open');
   if(isOpen)renderAnnList();
 }
+function hoverOpenAP(){
+  const anns=annForDoc();
+  if(!anns.length) return; // don't open empty panel on hover
+  const ap=document.getElementById('ap');
+  ap.classList.add('open');
+  renderAnnList();
+}
+// Close annotations panel on outside click (same as file browser)
+document.addEventListener('click',e=>{
+  const ap=document.getElementById('ap');
+  const trigger=document.getElementById('ap-trigger');
+  if(ap.classList.contains('open')&&!ap.contains(e.target)&&!trigger.contains(e.target)){
+    ap.classList.remove('open');
+  }
+});
 
 /* ── SEND TO ATLAS (Telegram) — post-commit only ── */
 async function dispatchAnnToAtlas(ann, commitSha){
