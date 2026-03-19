@@ -240,6 +240,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
   <div id="sb-goal"><div id="goal-bar"><div id="goal-fill"></div></div><span id="goal-label"></span></div>
   <span id="sb-rt"></span>
   <button id="sb-lang" onclick="cycleLang()" title="Spellcheck language">EN</button>
+  <button id="sb-fs" onclick="toggleFullscreen()" title="Fullscreen (F11)" style="background:none;border:none;color:var(--fg3);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;transition:color .15s;font-family:var(--font)">⤢</button>
   <button id="sb-dark" onclick="openThemePicker()" title="Theme">◐ theme</button>
 </div>
 <div id="toast"></div>
@@ -737,6 +738,7 @@ ta.addEventListener('keydown',e=>{
   if(mod&&e.shiftKey&&e.key==='B'){e.preventDefault();toggleFB();return;}
   if(mod&&e.shiftKey&&e.key==='N'){e.preventDefault();openSnapshot();return;}
   if(mod&&e.key==='i'&&!e.shiftKey){e.preventDefault();toggleStats();return;}
+  if(e.key==='F11'){e.preventDefault();toggleFullscreen();return;}
 });
 ta.addEventListener('keyup',()=>{ if(S.focus)updateOv(); });
 ta.addEventListener('click',()=>{ if(S.focus)updateOv(); });
@@ -817,6 +819,7 @@ const CMDS=[
   {l:'Chapter Navigator',k:'⌘⇧H',fn:()=>toggleCN()},
   {l:'Save Snapshot',k:'⌘⇧N',fn:()=>openSnapshot()},
   {l:'Set Word Goal',k:'',fn:()=>{const g=prompt('Daily word goal (0 to disable):',S.cfg.wordGoal||0);if(g!==null){S.cfg.wordGoal=parseInt(g)||0;localStorage.setItem('prose_cfg',JSON.stringify(S.cfg));updateGoal();}}},
+  {l:'Fullscreen',k:'F11',fn:()=>toggleFullscreen()},
   {l:'Document Stats',k:'⌘I',fn:()=>toggleStats()},
   {l:'Spellcheck Language',k:'',fn:()=>cycleLang()},
 ];
@@ -1388,6 +1391,21 @@ function renderStats(){
     <div class="stat-row"><span class="stat-label">Code blocks</span><span class="stat-val">${codeBlocks + inlineCode}</span></div>
   `;
 }
+
+/* ── FULLSCREEN ── */
+function toggleFullscreen(){
+  if(!document.fullscreenElement){
+    document.documentElement.requestFullscreen().catch(()=>{});
+  } else {
+    document.exitFullscreen().catch(()=>{});
+  }
+}
+document.addEventListener('fullscreenchange',()=>{
+  const on=!!document.fullscreenElement;
+  const btn=document.getElementById('sb-fs');
+  if(btn) btn.textContent=on?'⤡':'⤢';
+  if(on) toast('Fullscreen — F11 or Esc to exit');
+});
 
 /* ── SPELLCHECK LANGUAGE ── */
 const LANGS=[
