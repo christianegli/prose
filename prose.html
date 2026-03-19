@@ -189,6 +189,14 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
 .stat-val{font-size:15px;font-weight:600;color:var(--fg);font-variant-numeric:tabular-nums}
 .stat-section{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--fg3);margin:16px 0 6px}
 
+/* ── AUTOCORRECT HINT ── */
+#ac-hint{position:fixed;bottom:60px;left:50%;transform:translateX(-50%);
+  background:rgba(128,128,128,.12);backdrop-filter:blur(4px);
+  border:1px solid var(--fg3);border-radius:20px;
+  padding:3px 12px;font-size:11px;color:var(--fg2);
+  pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap;z-index:800}
+#ac-hint.show{opacity:1}
+
 /* ── LANG BADGE ── */
 #sb-lang{background:none;border:1px solid var(--fg3);border-radius:4px;color:var(--fg3);cursor:pointer;font-size:10px;padding:2px 7px;font-family:var(--font);transition:all .15s;letter-spacing:.04em}
 #sb-lang:hover{border-color:var(--fg2);color:var(--fg2)}
@@ -227,7 +235,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
 
 <div id="col">
   <div id="ov" aria-hidden="true"></div>
-  <textarea id="ta" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="true" placeholder="Start writing…"></textarea>
+  <textarea id="ta" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true" placeholder="Start writing…"></textarea>
 </div>
 <div id="prev"></div>
 
@@ -244,6 +252,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
   <button id="sb-dark" onclick="openThemePicker()" title="Theme">◐ theme</button>
 </div>
 <div id="toast"></div>
+<div id="ac-hint"></div>
 
 <!-- Cmd palette -->
 <div class="mo" id="cmd-mo" onclick="moOut(event,'cmd-mo')">
@@ -888,6 +897,7 @@ const CMDS=[
   {l:'Fullscreen',k:'F11',fn:()=>toggleFullscreen()},
   {l:'Document Stats',k:'⌘I',fn:()=>toggleStats()},
   {l:'Spellcheck Language',k:'',fn:()=>cycleLang()},
+  {l:'Toggle Autocorrect',k:'',fn:()=>{acEnabled=!acEnabled;toast('Autocorrect '+(acEnabled?'on':'off'));}},
 ];
 function openCmd(){
   document.getElementById('cmd-in').value='';
@@ -1560,6 +1570,86 @@ function ghDisconnect(){
   document.getElementById('gh-step-branch').style.display='none';
   document.getElementById('gh-step-file').style.display='none';
 }
+
+/* ── AUTOCORRECT ── */
+// Combined EN + DE common typo map
+const AC_MAP = {
+  // Common EN typos
+  'teh':'the','hte':'the','adn':'and','nad':'and','thsi':'this','tis':'this',
+  'wiht':'with','waht':'what','taht':'that','thta':'that','dont':"don't",
+  'doesnt':"doesn't",'isnt':"isn't",'wasnt':"wasn't",'arent':"aren't",
+  'cant':"can't",'wont':"won't",'wouldnt':"wouldn't",'couldnt':"couldn't",
+  'shouldnt':"shouldn't",'youre':"you're",'theyre':"they're",'ive':"I've",
+  'im':"I'm",'iam':"I am",'id':"I'd",'ill':"I'll",'weve':"we've",
+  'youve':"you've",'theyve':"they've",'its':"it's",'becuase':'because',
+  'becasue':'because','definately':'definitely','occured':'occurred',
+  'seperate':'separate','recieve':'receive','acheive':'achieve',
+  'neccessary':'necessary','accomodate':'accommodate','occurence':'occurrence',
+  'occurance':'occurrence','realy':'really','alot':'a lot','alright':'all right',
+  'untill':'until','begining':'beginning','writting':'writing','writen':'written',
+  'writng':'writing','writting':'writing','hapen':'happen','hapened':'happened',
+  'continous':'continuous','continously':'continuously','expirience':'experience',
+  'experiece':'experience','knowlege':'knowledge','languague':'language',
+  'persaude':'persuade','publically':'publicly','privelege':'privilege',
+  'commited':'committed','commiting':'committing','occurence':'occurrence',
+  'absense':'absence','existance':'existence','maintainance':'maintenance',
+  'therfore':'therefore','therefor':'therefore','arguement':'argument',
+  'enviroment':'environment','goverment':'government','parliment':'parliament',
+  'restaraunt':'restaurant','restraunt':'restaurant','concious':'conscious',
+  'consciuos':'conscious','inconvienent':'inconvenient','accesible':'accessible',
+  'payed':'paid','spelt':'spelled','learnt':'learned',
+  // Prose-specific
+  'ther':'their','thier':'their','wich':'which','whcih':'which',
+  'siad':'said','jsut':'just','nad':'and','fo':'of','ot':'to','ot':'of',
+  'hsi':'his','tey':'they','ofthe':'of the','andthe':'and the',
+  // DE common typos
+  'nciht':'nicht','nihct':'nicht','auhc':'auch','doch':'doch',
+  'dnke':'danke','merhc':'mehr','seien':'seinen','ihren':'ihren',
+  'einige':'einige','wurden':'wurden','weiter':'weiter',
+};
+
+let acEnabled=true;
+let acHintTimer=null;
+
+function showAcHint(from,to){
+  const el=document.getElementById('ac-hint');
+  el.textContent=`${from} → ${to}`;
+  el.classList.add('show');
+  clearTimeout(acHintTimer);
+  acHintTimer=setTimeout(()=>el.classList.remove('show'),1400);
+}
+
+function tryAutocorrect(e){
+  if(!acEnabled)return;
+  // trigger on space, punctuation, enter
+  const triggers=' ,.!?;:\n\'")-';
+  if(!triggers.includes(e.key))return;
+  const pos=ta.selectionStart;
+  const before=ta.value.substring(0,pos);
+  // extract last word
+  const match=before.match(/([a-zA-ZäöüÄÖÜß'-]+)$/);
+  if(!match)return;
+  const word=match[1];
+  const lower=word.toLowerCase();
+  const correction=AC_MAP[lower]||AC_MAP[word];
+  if(!correction||correction===word)return;
+  // preserve capitalisation
+  let fixed=correction;
+  if(word[0]===word[0].toUpperCase()&&word[0]!==word[0].toLowerCase()){
+    fixed=correction[0].toUpperCase()+correction.slice(1);
+  }
+  if(fixed===word)return;
+  // apply replacement
+  const start=pos-word.length;
+  const end=pos;
+  // Use execCommand for undo support
+  ta.focus();
+  ta.setSelectionRange(start,end);
+  document.execCommand('insertText',false,fixed);
+  showAcHint(word,fixed);
+}
+
+ta.addEventListener('keydown',tryAutocorrect);
 
 /* ── FULLSCREEN ── */
 function toggleFullscreen(){
