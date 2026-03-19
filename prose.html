@@ -681,12 +681,26 @@ function getCurrentLine(){
 
 function isInCurrentPara(start,end){
   const v=ta.value, cp=ta.selectionStart;
-  // find paragraph boundaries around cursor
-  let ps=cp, pe=cp;
-  while(ps>0&&v[ps-1]!=='\n')ps--;
-  while(pe<v.length&&v[pe]!=='\n')pe++;
-  // expand para to include adjacent non-empty lines
-  while(ps>1&&v.substring(ps-2,ps-1)!=='\n')ps=v.lastIndexOf('\n',ps-2)+1;
+  // Walk back to find the start of this paragraph (prev blank line or doc start)
+  let ps=cp;
+  while(ps>0){
+    const prev=v.lastIndexOf('\n',ps-1);
+    if(prev<0){ps=0;break;}
+    // if the line before the newline is blank, we've crossed a paragraph boundary
+    const lineStart=v.lastIndexOf('\n',prev-1)+1;
+    if(v.substring(lineStart,prev).trim()===''){ps=prev+1;break;}
+    ps=lineStart;
+  }
+  // Walk forward to find the end of this paragraph (next blank line or doc end)
+  let pe=cp;
+  while(pe<v.length){
+    const next=v.indexOf('\n',pe);
+    if(next<0){pe=v.length;break;}
+    const lineEnd=v.indexOf('\n',next+1);
+    const nextLine=v.substring(next+1,lineEnd<0?v.length:lineEnd);
+    if(nextLine.trim()===''){pe=next;break;}
+    pe=lineEnd<0?v.length:lineEnd;
+  }
   return end>=ps&&start<=pe;
 }
 
@@ -793,6 +807,7 @@ ta.addEventListener('keydown',e=>{
 });
 ta.addEventListener('keyup',()=>{ if(S.focus)updateOv(); });
 ta.addEventListener('click',()=>{ if(S.focus)updateOv(); });
+ta.addEventListener('mouseup',()=>{ if(S.focus)setTimeout(updateOv,0); });
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){closeAllMo();}
 });
@@ -1319,12 +1334,11 @@ function renderFBTree(){
   Object.keys(dirs).filter(d=>d!=='.').sort().forEach((dir,idx)=>{
     const collapsed=fbCollapsed[dir]||false;
     const gid='fbg-'+idx;
-    html+=`<div class="fbi fbi-dir${collapsed?' collapsed':''}" onclick="toggleFBDir('${esc(dir)}','${gid}')">
+    html+=`<div class="fbi fbi-dir${collapsed?' collapsed':''}" data-dir="${esc(dir)}" data-gid="${gid}" onclick="toggleFBDir(this)">
       <span class="fbi-dir-arrow">▾</span>
       <span>${esc(dir)}</span>
       <span style="margin-left:auto;color:var(--fg3);font-size:10px;font-weight:400;letter-spacing:0">${dirs[dir].length}</span>
     </div>`;
-    // Estimate max-height for animation
     const maxH=dirs[dir].length*34+8;
     html+=`<div class="fbi-group${collapsed?' collapsed':''}" id="${gid}" style="max-height:${collapsed?0:maxH}px">`;
     dirs[dir].forEach(f=>{
@@ -1342,18 +1356,16 @@ function renderFBTree(){
   });
   el.innerHTML=html;
 }
-function toggleFBDir(dir,gid){
-  fbCollapsed[dir]=!fbCollapsed[dir];
-  const dirEl=document.querySelector(`.fbi-dir[onclick*="${dir}"]`);
+function toggleFBDir(el){
+  const dir=el.dataset.dir;
+  const gid=el.dataset.gid;
   const grpEl=document.getElementById(gid);
-  if(!dirEl||!grpEl)return;
+  if(!grpEl)return;
+  fbCollapsed[dir]=!fbCollapsed[dir];
   const collapsed=fbCollapsed[dir];
-  dirEl.classList.toggle('collapsed',collapsed);
+  el.classList.toggle('collapsed',collapsed);
   grpEl.classList.toggle('collapsed',collapsed);
-  if(!collapsed){
-    // restore height for animation
-    grpEl.style.maxHeight=grpEl.scrollHeight+'px';
-  }
+  grpEl.style.maxHeight=collapsed?'0':(grpEl.scrollHeight+'px');
 }
 async function fbOpenFile(path){
   if(!S.cfg.ghTok||!S.cfg.ghRepo)return;
