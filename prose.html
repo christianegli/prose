@@ -15,6 +15,18 @@
 [data-theme=dark]{
   --bg:#0d0d0d;--fg:#e6e6e6;--fg2:#888;--fg3:#3a3a3a;--accent:#a78bfa;
 }
+[data-theme=sepia]{
+  --bg:#f5efe6;--fg:#3b2f20;--fg2:#7a6450;--fg3:#c8b89a;--accent:#8b5e3c;
+}
+[data-theme=paper]{
+  --bg:#fafaf8;--fg:#2c2c2c;--fg2:#777;--fg3:#ccc;--accent:#5b4b8a;
+}
+[data-theme=midnight]{
+  --bg:#0a0f1e;--fg:#c9d1e3;--fg2:#6b7a99;--fg3:#1e2840;--accent:#7b9cff;
+}
+[data-theme=forest]{
+  --bg:#0f1a12;--fg:#c8d8c0;--fg2:#6b8c62;--fg3:#1e3020;--accent:#5dba6e;
+}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{min-height:100vh}
 body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(--sz);line-height:var(--lh);transition:background .2s,color .2s}
@@ -41,8 +53,16 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
 #sb-z:hover~#sb,#sb:hover{opacity:1;pointer-events:auto}
 #dot{width:7px;height:7px;border-radius:50%;background:var(--fg3);flex-shrink:0;transition:background .3s}
 #dot.ok{background:#4ade80}#dot.dirty{background:#fbbf24}#dot.err{background:#f87171}
-#sb-dark{margin-left:auto;background:none;border:none;color:var(--fg3);cursor:pointer;font-size:15px;padding:2px 8px;border-radius:4px;transition:color .15s;font-family:var(--font)}
+#sb-dark{margin-left:auto;background:none;border:none;color:var(--fg3);cursor:pointer;font-size:13px;padding:2px 8px;border-radius:4px;transition:color .15s;font-family:var(--font);letter-spacing:.02em}
 #sb-dark:hover{color:var(--fg)}
+/* theme picker */
+#mo-theme .mbox{max-width:380px}
+.th-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px}
+.th{border:2px solid transparent;border-radius:8px;padding:12px 10px;cursor:pointer;transition:border-color .15s;text-align:center}
+.th:hover{border-color:var(--fg3)}
+.th.active{border-color:var(--accent)}
+.th-swatch{width:100%;height:34px;border-radius:5px;margin-bottom:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-family:var(--font)}
+.th-name{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--fg2)}
 /* toast */
 #toast{position:fixed;top:22px;right:26px;font-size:11px;color:var(--fg3);opacity:0;transition:opacity .25s;pointer-events:none;z-index:900}
 #toast.on{opacity:1}
@@ -128,6 +148,14 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
   white-space:nowrap;
 }
 #ftb.show{opacity:1;pointer-events:auto;transform:translateY(0)}
+#ftb.pinned{
+  position:sticky;top:0;left:0;right:0;
+  width:fit-content;margin:0 auto 12px;
+  opacity:1;pointer-events:auto;
+  transform:none;box-shadow:none;
+  border-radius:0 0 8px 8px;
+  border-top:none;
+}
 .fb{background:none;border:none;cursor:pointer;border-radius:5px;padding:4px 7px;color:var(--fg2);font-size:13px;font-family:var(--font);line-height:1;transition:background .1s,color .1s}
 .fb:hover{background:rgba(128,128,128,.1);color:var(--fg)}
 .fb-bold{font-weight:700}
@@ -149,7 +177,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
   <span id="sb-wc">0 words</span>
   <span id="sb-cc">0 chars</span>
   <span id="sb-dn" style="color:var(--fg2)"></span>
-  <button id="sb-dark" onclick="toggleDark()" title="Toggle dark mode">◐</button>
+  <button id="sb-dark" onclick="openThemePicker()" title="Theme">◐ theme</button>
 </div>
 <div id="toast"></div>
 
@@ -246,6 +274,15 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
   <div id="ap-list"></div>
 </div>
 
+<!-- Theme picker -->
+<div class="mo" id="mo-theme" onclick="moOut(event,'mo-theme')">
+  <div class="mbox">
+    <h3>Appearance</h3>
+    <div class="th-grid" id="th-grid"></div>
+    <div class="brow"><button class="btn btn-g" onclick="closeMo('mo-theme')">Done</button></div>
+  </div>
+</div>
+
 <!-- Floating format toolbar -->
 <div id="ftb">
   <button class="fb fb-bold" onclick="ftbWrap('**','**')" title="Bold (⌘B)"><b>B</b></button>
@@ -287,6 +324,7 @@ function init(){
   applyTheme();
   setInterval(()=>{if(S.dirty)saveDoc(true)},30000);
   scheduleAutoCommit();
+  if(localStorage.getItem('prose_ftb_pinned')==='1') togglePinFtb();
   ta.focus();
 }
 
@@ -297,7 +335,7 @@ function loadAnns(){try{S.anns=JSON.parse(localStorage.getItem('prose_anns')||'{
 function saveAnns(){localStorage.setItem('prose_anns',JSON.stringify(S.anns))}
 function loadCfg(){
   try{Object.assign(S.cfg,JSON.parse(localStorage.getItem('prose_cfg')||'{}'))}catch(e){}
-  S.dark=localStorage.getItem('prose_dark')==='1';
+  S.theme=localStorage.getItem('prose_theme')||'auto';
 }
 function saveSettings(){
   S.cfg.ghTok=document.getElementById('s-gh-tok').value.trim();
@@ -578,6 +616,7 @@ ta.addEventListener('keydown',e=>{
   if(mod&&e.shiftKey&&e.key==='A'){e.preventDefault();openAnnotate();return;}
   if(mod&&e.shiftKey&&e.key==='I'){e.preventDefault();toggleAP();return;}
   if(e.key==='Tab'){e.preventDefault();insertAtCaret('  ');}
+  if(e.ctrlKey&&!e.metaKey&&e.key==='t'){e.preventDefault();togglePinFtb();return;}
 });
 ta.addEventListener('keyup',()=>{ if(S.focus)updateOv(); });
 ta.addEventListener('click',()=>{ if(S.focus)updateOv(); });
@@ -609,15 +648,8 @@ function insertAtCaret(txt){
   ta.dispatchEvent(new Event('input'));
 }
 
-/* ── DARK MODE ── */
-function applyTheme(){
-  document.documentElement.setAttribute('data-theme',S.dark?'dark':'');
-}
-function toggleDark(){
-  S.dark=!S.dark;
-  localStorage.setItem('prose_dark',S.dark?'1':'0');
-  applyTheme();
-}
+/* ── DARK MODE (compat shim) ── */
+function toggleDark(){openThemePicker();}
 
 /* ── STATUS DOT ── */
 function dot(state){
@@ -656,10 +688,11 @@ const CMDS=[
   {l:'Annotations Panel',k:'⌘⇧I',fn:()=>toggleAP()},
   {l:'Export',k:'⌘E',fn:()=>openExport()},
   {l:'Settings',k:'⌘,',fn:()=>openSettings()},
-  {l:'Dark Mode',k:'',fn:()=>toggleDark()},
+  {l:'Appearance / Theme',k:'',fn:()=>openThemePicker()},
   {l:'Word Count',k:'',fn:()=>{const t=ta.value.trim();toast((t?t.split(/\s+/).length:0)+' words')}},
   {l:'Bold',k:'⌘B',fn:()=>{closeMo('cmd-mo');setTimeout(()=>wrapSel('**','**'),50)}},
   {l:'Italic',k:'⌘I',fn:()=>{closeMo('cmd-mo');setTimeout(()=>wrapSel('*','*'),50)}},
+  {l:'Toggle Toolbar',k:'⌃T',fn:()=>togglePinFtb()},
 ];
 function openCmd(){
   document.getElementById('cmd-in').value='';
@@ -951,20 +984,36 @@ function hidePop(){document.getElementById('pop').style.display='none'}
 /* ── FLOATING TOOLBAR ── */
 const ftb=document.getElementById('ftb');
 let ftbTimer=null;
+let ftbPinned=false;
 
 function showFtb(){
+  if(ftbPinned)return;
   const s=ta.selectionStart,e=ta.selectionEnd;
   if(s===e){hideFtb();return;}
-  // Position above the selection using a range on a mirror element
-  const rect=ta.getBoundingClientRect();
-  // Approximate position: use mouse coords stored on last mouseup
   const x=Math.min(_ftbX,window.innerWidth-220);
   const y=_ftbY-10;
   ftb.style.left=Math.max(8,x-ftb.offsetWidth/2)+'px';
   ftb.style.top=(y-44)+'px';
   ftb.classList.add('show');
 }
-function hideFtb(){ftb.classList.remove('show')}
+function hideFtb(){if(!ftbPinned)ftb.classList.remove('show')}
+function togglePinFtb(){
+  ftbPinned=!ftbPinned;
+  if(ftbPinned){
+    // reset float positioning, insert into column
+    ftb.style.left=''; ftb.style.top='';
+    ftb.classList.remove('show');
+    ftb.classList.add('pinned');
+    document.getElementById('col').insertBefore(ftb,document.getElementById('col').firstChild);
+    toast('Toolbar pinned');
+  } else {
+    ftb.classList.remove('pinned');
+    ftb.classList.remove('show');
+    document.body.appendChild(ftb);
+    toast('Toolbar hidden');
+  }
+  localStorage.setItem('prose_ftb_pinned',ftbPinned?'1':'0');
+}
 
 let _ftbX=0,_ftbY=0;
 ta.addEventListener('mouseup',e=>{
@@ -975,7 +1024,6 @@ ta.addEventListener('mouseup',e=>{
 ta.addEventListener('keyup',e=>{
   if(e.shiftKey){
     clearTimeout(ftbTimer);
-    // estimate toolbar at middle of textarea for keyboard selections
     const r=ta.getBoundingClientRect();
     _ftbX=r.left+r.width/2; _ftbY=r.top+r.height/2;
     ftbTimer=setTimeout(showFtb,80);
@@ -1024,7 +1072,47 @@ function ftbLink(){
 }
 
 /* ── THEME ── */
-function applyTheme(){document.documentElement.setAttribute('data-theme',S.dark?'dark':'');}
+const THEMES=[
+  {id:'auto',  name:'Auto',    bg:'linear-gradient(135deg,#fff 50%,#0d0d0d 50%)', fg:'#888',    sample:'Aa'},
+  {id:'light', name:'Light',   bg:'#ffffff', fg:'#1a1a1a', sample:'Aa'},
+  {id:'dark',  name:'Dark',    bg:'#0d0d0d', fg:'#e6e6e6', sample:'Aa'},
+  {id:'sepia', name:'Sepia',   bg:'#f5efe6', fg:'#3b2f20', sample:'Aa'},
+  {id:'paper', name:'Paper',   bg:'#fafaf8', fg:'#2c2c2c', sample:'Aa'},
+  {id:'midnight',name:'Midnight',bg:'#0a0f1e',fg:'#c9d1e3',sample:'Aa'},
+  {id:'forest',name:'Forest',  bg:'#0f1a12', fg:'#c8d8c0', sample:'Aa'},
+];
+
+function applyTheme(){
+  const t=S.theme||'auto';
+  if(t==='auto'){
+    const dark=window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.setAttribute('data-theme',dark?'dark':'');
+  } else {
+    document.documentElement.setAttribute('data-theme',t==='light'?'':t);
+  }
+}
+function setTheme(id){
+  S.theme=id;
+  localStorage.setItem('prose_theme',id);
+  applyTheme();
+  renderThemeGrid();
+}
+function openThemePicker(){
+  renderThemeGrid();
+  openMo('mo-theme');
+}
+function renderThemeGrid(){
+  const cur=S.theme||'auto';
+  document.getElementById('th-grid').innerHTML=THEMES.map(t=>`
+    <div class="th${t.id===cur?' active':''}" onclick="setTheme('${t.id}')">
+      <div class="th-swatch" style="background:${t.bg};color:${t.fg}">${t.sample}</div>
+      <div class="th-name">${t.name}</div>
+    </div>`).join('');
+}
+// listen for system theme changes when in auto mode
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{
+  if((S.theme||'auto')==='auto') applyTheme();
+});
 
 /* ── INIT ── */
 init();
