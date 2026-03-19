@@ -322,17 +322,17 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
 
     <!-- Tab bar -->
     <div style="display:flex;border-bottom:1px solid var(--fg3);padding:0 4px">
-      <button class="stab active" data-tab="writing"  onclick="switchStab(this,'writing')">✍️ Writing</button>
-      <button class="stab"        data-tab="github"   onclick="switchStab(this,'github')">⚙ GitHub</button>
-      <button class="stab"        data-tab="appear"   onclick="switchStab(this,'appear')">🎨 Appearance</button>
-      <button class="stab"        data-tab="atlas"    onclick="switchStab(this,'atlas')">🦉 Atlas</button>
+      <button class="stab" data-tab="writing"  onclick="switchStab(this,'writing')">Writing</button>
+      <button class="stab" data-tab="github"   onclick="switchStab(this,'github')">GitHub</button>
+      <button class="stab" data-tab="appear"   onclick="switchStab(this,'appear')">Appearance</button>
+      <button class="stab" data-tab="atlas"    onclick="switchStab(this,'atlas')">Atlas</button>
     </div>
 
     <!-- Tab panels -->
     <div style="padding:22px 24px;overflow-y:auto;max-height:68vh">
 
       <!-- ── WRITING ── -->
-      <div class="spanel" id="sp-writing">
+      <div class="spanel" id="sp-writing" style="display:none">
         <div style="margin-bottom:22px">
           <p class="shead">Word Goal</p>
           <label>Daily target (0 = off)</label>
