@@ -1002,13 +1002,14 @@ const CMDS=[
 function openCmd(){
   document.getElementById('cmd-in').value='';
   S.cmdIdx=0;
-  filterCmds();
+  S.cmdItems=CMDS; // show all on open
+  renderCmds();
   openMo('cmd-mo');
   setTimeout(()=>document.getElementById('cmd-in').focus(),80);
 }
 function filterCmds(){
   const q=document.getElementById('cmd-in').value.toLowerCase();
-  S.cmdItems=CMDS.filter(c=>!q||c.l.toLowerCase().includes(q));
+  S.cmdItems=q?CMDS.filter(c=>c.l.toLowerCase().includes(q)):CMDS;
   S.cmdIdx=0;
   renderCmds();
 }
@@ -1087,17 +1088,16 @@ function openSettings(tab){
   document.getElementById('s-lw').value=curLw;
   document.getElementById('s-sz-val').textContent=curSz+'px';
   document.getElementById('s-lw-val').textContent=curLw+'px';
-  // Hide all panels first, then activate the right tab
-  document.querySelectorAll('.spanel').forEach(p=>p.style.display='none');
-  document.querySelectorAll('.stab').forEach(t=>t.classList.remove('active'));
+  // Activate tab — scoped to settings modal
+  const modal=document.getElementById('mo-settings');
+  modal.querySelectorAll('.spanel').forEach(p=>p.style.display='none');
+  modal.querySelectorAll('.stab').forEach(t=>t.classList.remove('active'));
   const targetTab=tab||'writing';
-  const tabEl=document.querySelector(`.stab[data-tab="${targetTab}"]`);
-  if(tabEl){
-    tabEl.classList.add('active');
-    const panel=document.getElementById('sp-'+targetTab);
-    if(panel) panel.style.display='block';
-    if(targetTab==='appear') renderThemeGrid('th-grid-s');
-  }
+  const tabEl=modal.querySelector(`[data-tab="${targetTab}"]`);
+  const panel=document.getElementById('sp-'+targetTab);
+  if(tabEl) tabEl.classList.add('active');
+  if(panel) panel.style.display='block';
+  if(targetTab==='appear') renderThemeGrid('th-grid-s');
   openMo('mo-settings');
 }
 function commitNow(){closeMo('mo-ann');syncToGH(false);}
@@ -1686,11 +1686,13 @@ function renderStats(){
 
 /* ── SETTINGS TABS ── */
 function switchStab(el,tab){
-  document.querySelectorAll('.stab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.spanel').forEach(p=>p.style.display='none');
+  const modal=document.getElementById('mo-settings');
+  modal.querySelectorAll('.stab').forEach(t=>t.classList.remove('active'));
+  modal.querySelectorAll('.spanel').forEach(p=>p.style.display='none');
   el.classList.add('active');
-  document.getElementById('sp-'+tab).style.display='block';
-  if(tab==='appear'){renderThemeGrid('th-grid-s');}
+  const panel=document.getElementById('sp-'+tab);
+  if(panel) panel.style.display='block';
+  if(tab==='appear') renderThemeGrid('th-grid-s');
 }
 function setLangFromSel(){
   langIdx=parseInt(document.getElementById('s-lang-sel').value)||0;
