@@ -175,6 +175,20 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
 #goal-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .3s ease}
 #goal-fill.done{background:#4ade80}
 
+/* ── STATS PANEL ── */
+#stats-panel{position:fixed;top:0;right:-380px;width:320px;height:100vh;background:var(--bg);border-left:1px solid var(--fg3);padding:28px 20px;overflow-y:auto;z-index:200;transition:right .25s ease;font-size:13px}
+#stats-panel.open{right:0}
+#stats-panel h3{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--fg2);margin-bottom:18px}
+.stat-row{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px solid rgba(128,128,128,.08)}
+.stat-row:last-child{border-bottom:none}
+.stat-label{font-size:12px;color:var(--fg2)}
+.stat-val{font-size:15px;font-weight:600;color:var(--fg);font-variant-numeric:tabular-nums}
+.stat-section{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--fg3);margin:16px 0 6px}
+
+/* ── LANG BADGE ── */
+#sb-lang{background:none;border:1px solid var(--fg3);border-radius:4px;color:var(--fg3);cursor:pointer;font-size:10px;padding:2px 7px;font-family:var(--font);transition:all .15s;letter-spacing:.04em}
+#sb-lang:hover{border-color:var(--fg2);color:var(--fg2)}
+
 /* ── SNAPSHOT modal ── */
 #mo-snap .mbox{max-width:360px}
 /* floating toolbar */
@@ -221,6 +235,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
   <span id="sb-dn" style="color:var(--fg2)"></span>
   <div id="sb-goal"><div id="goal-bar"><div id="goal-fill"></div></div><span id="goal-label"></span></div>
   <span id="sb-rt"></span>
+  <button id="sb-lang" onclick="cycleLang()" title="Spellcheck language">EN</button>
   <button id="sb-dark" onclick="openThemePicker()" title="Theme">◐ theme</button>
 </div>
 <div id="toast"></div>
@@ -345,6 +360,15 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
   <div id="cn-list"></div>
 </div>
 
+<!-- Stats panel -->
+<div id="stats-panel">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+    <h3 style="margin:0">Document Stats</h3>
+    <button onclick="toggleStats()" style="background:none;border:none;color:var(--fg3);cursor:pointer;font-size:16px;padding:2px 8px;border-radius:4px">✕</button>
+  </div>
+  <div id="stats-body"></div>
+</div>
+
 <!-- Snapshot modal -->
 <div class="mo" id="mo-snap" onclick="moOut(event,'mo-snap')">
   <div class="mbox" id="mo-snap">
@@ -410,6 +434,7 @@ function init(){
   scheduleAutoCommit();
   if(localStorage.getItem('prose_ftb_pinned')==='1') togglePinFtb();
   updateGoal();
+  initLang();
   ta.focus();
 }
 
@@ -682,6 +707,7 @@ function scheduleTypewriter(){
 /* ── EVENTS ── */
 ta.addEventListener('input',()=>{
   autoResize(); updateOv(); updateWC(); updateGoal();
+  if(statsOpen) renderStats();
   S.dirty=true; dot('dirty');
   scheduleTypewriter();
 });
@@ -706,6 +732,7 @@ ta.addEventListener('keydown',e=>{
   if(mod&&e.shiftKey&&e.key==='H'){e.preventDefault();toggleCN();return;}
   if(mod&&e.shiftKey&&e.key==='B'){e.preventDefault();toggleFB();return;}
   if(mod&&e.shiftKey&&e.key==='N'){e.preventDefault();openSnapshot();return;}
+  if(mod&&e.key==='i'&&!e.shiftKey){e.preventDefault();toggleStats();return;}
 });
 ta.addEventListener('keyup',()=>{ if(S.focus)updateOv(); });
 ta.addEventListener('click',()=>{ if(S.focus)updateOv(); });
@@ -786,6 +813,8 @@ const CMDS=[
   {l:'Chapter Navigator',k:'⌘⇧H',fn:()=>toggleCN()},
   {l:'Save Snapshot',k:'⌘⇧N',fn:()=>openSnapshot()},
   {l:'Set Word Goal',k:'',fn:()=>{const g=prompt('Daily word goal (0 to disable):',S.cfg.wordGoal||0);if(g!==null){S.cfg.wordGoal=parseInt(g)||0;localStorage.setItem('prose_cfg',JSON.stringify(S.cfg));updateGoal();}}},
+  {l:'Document Stats',k:'⌘I',fn:()=>toggleStats()},
+  {l:'Spellcheck Language',k:'',fn:()=>cycleLang()},
 ];
 function openCmd(){
   document.getElementById('cmd-in').value='';
@@ -1263,6 +1292,82 @@ function jumpToLine(line){
   ta.setSelectionRange(pos,pos);
   typewriterScroll();
   toggleCN();
+}
+
+/* ── STATS PANEL ── */
+let statsOpen=false;
+function toggleStats(){
+  statsOpen=!statsOpen;
+  document.getElementById('stats-panel').classList.toggle('open',statsOpen);
+  if(statsOpen) renderStats();
+}
+function renderStats(){
+  const txt=ta.value;
+  const trimmed=txt.trim();
+  const words=trimmed?trimmed.split(/\s+/).length:0;
+  const chars=txt.length;
+  const charsNoSpace=txt.replace(/\s/g,'').length;
+  const sentences=trimmed?(trimmed.match(/[.!?]+/g)||[]).length:0;
+  const paragraphs=trimmed?trimmed.split(/\n\s*\n/).filter(p=>p.trim()).length:0;
+  const lines=txt.split('\n').length;
+  const readMins=Math.ceil(words/220);
+  const readSecs=Math.round((words/220)*60);
+  const avgWordLen=words?Math.round((charsNoSpace/words)*10)/10:0;
+  const longestWord=trimmed?[...new Set(trimmed.split(/\s+/).map(w=>w.replace(/[^a-zA-ZäöüÄÖÜß]/g,'')).filter(Boolean))].sort((a,b)=>b.length-a.length)[0]||'—':'—';
+  // heading/structure counts
+  const headings=(txt.match(/^#{1,3} .+/gm)||[]).length;
+  const links=(txt.match(/\[.+?\]\(.+?\)/g)||[]).length;
+  const codeBlocks=(txt.match(/```[\s\S]*?```/g)||[]).length;
+  const inlineCode=(txt.match(/`[^`]+`/g)||[]).length;
+  // unique words
+  const uniqueWords=trimmed?new Set(trimmed.toLowerCase().split(/\s+/).map(w=>w.replace(/[^a-zA-ZäöüÄÖÜß]/g,''))).size:0;
+  const lexDensity=words?Math.round(uniqueWords/words*100):0;
+
+  document.getElementById('stats-body').innerHTML=`
+    <div class="stat-section">Length</div>
+    <div class="stat-row"><span class="stat-label">Words</span><span class="stat-val">${words.toLocaleString()}</span></div>
+    <div class="stat-row"><span class="stat-label">Characters</span><span class="stat-val">${chars.toLocaleString()}</span></div>
+    <div class="stat-row"><span class="stat-label">Characters (no spaces)</span><span class="stat-val">${charsNoSpace.toLocaleString()}</span></div>
+    <div class="stat-row"><span class="stat-label">Lines</span><span class="stat-val">${lines.toLocaleString()}</span></div>
+    <div class="stat-row"><span class="stat-label">Paragraphs</span><span class="stat-val">${paragraphs.toLocaleString()}</span></div>
+    <div class="stat-row"><span class="stat-label">Sentences</span><span class="stat-val">${sentences.toLocaleString()}</span></div>
+    <div class="stat-section">Reading</div>
+    <div class="stat-row"><span class="stat-label">Reading time</span><span class="stat-val">${readMins < 1 ? readSecs+'s' : readMins+'m'}</span></div>
+    <div class="stat-row"><span class="stat-label">Speaking time</span><span class="stat-val">${Math.ceil(words/130)}m</span></div>
+    <div class="stat-section">Vocabulary</div>
+    <div class="stat-row"><span class="stat-label">Unique words</span><span class="stat-val">${uniqueWords.toLocaleString()}</span></div>
+    <div class="stat-row"><span class="stat-label">Lexical density</span><span class="stat-val">${lexDensity}%</span></div>
+    <div class="stat-row"><span class="stat-label">Avg word length</span><span class="stat-val">${avgWordLen} chars</span></div>
+    <div class="stat-row"><span class="stat-label">Longest word</span><span class="stat-val" style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis">${esc(longestWord)}</span></div>
+    <div class="stat-section">Structure</div>
+    <div class="stat-row"><span class="stat-label">Headings</span><span class="stat-val">${headings}</span></div>
+    <div class="stat-row"><span class="stat-label">Links</span><span class="stat-val">${links}</span></div>
+    <div class="stat-row"><span class="stat-label">Code blocks</span><span class="stat-val">${codeBlocks + inlineCode}</span></div>
+  `;
+}
+
+/* ── SPELLCHECK LANGUAGE ── */
+const LANGS=[
+  {code:'en',label:'EN',attr:'en-US'},
+  {code:'de',label:'DE',attr:'de-DE'},
+  {code:'both',label:'EN+DE',attr:'en'},
+];
+let langIdx=0;
+function cycleLang(){
+  langIdx=(langIdx+1)%LANGS.length;
+  applyLang();
+}
+function applyLang(){
+  const l=LANGS[langIdx];
+  ta.setAttribute('lang',l.attr);
+  ta.setAttribute('spellcheck','true');
+  document.getElementById('sb-lang').textContent=l.label;
+  localStorage.setItem('prose_lang',langIdx);
+  toast('Spellcheck: '+l.label);
+}
+function initLang(){
+  langIdx=parseInt(localStorage.getItem('prose_lang'))||0;
+  applyLang();
 }
 
 /* ── WORD GOAL ── */
