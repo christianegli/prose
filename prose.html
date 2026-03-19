@@ -1084,10 +1084,17 @@ function openSettings(tab){
   document.getElementById('s-lw').value=curLw;
   document.getElementById('s-sz-val').textContent=curSz+'px';
   document.getElementById('s-lw-val').textContent=curLw+'px';
-  // Switch to requested tab (default: writing)
+  // Hide all panels first, then activate the right tab
+  document.querySelectorAll('.spanel').forEach(p=>p.style.display='none');
+  document.querySelectorAll('.stab').forEach(t=>t.classList.remove('active'));
   const targetTab=tab||'writing';
   const tabEl=document.querySelector(`.stab[data-tab="${targetTab}"]`);
-  if(tabEl) switchStab(tabEl,targetTab);
+  if(tabEl){
+    tabEl.classList.add('active');
+    const panel=document.getElementById('sp-'+targetTab);
+    if(panel) panel.style.display='block';
+    if(targetTab==='appear') renderThemeGrid('th-grid-s');
+  }
   openMo('mo-settings');
 }
 function commitNow(){closeMo('mo-ann');syncToGH(false);}
