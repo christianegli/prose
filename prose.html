@@ -332,121 +332,100 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
 
 <!-- Settings -->
 <div class="mo" id="mo-settings" onclick="moOut(event,'mo-settings')">
-  <div class="mbox" style="width:560px;padding:0;overflow:hidden">
+  <div class="mbox" style="width:580px;padding:0;overflow:hidden">
 
-    <!-- Tab bar -->
-    <div style="display:flex;border-bottom:1px solid var(--fg3);padding:0 4px">
+    <div style="display:flex;border-bottom:1px solid var(--fg3);padding:0 4px;overflow-x:auto">
       <button class="stab" data-tab="writing"  onclick="switchStab(this,'writing')">Writing</button>
       <button class="stab" data-tab="github"   onclick="switchStab(this,'github')">GitHub</button>
-      <button class="stab" data-tab="appear"   onclick="switchStab(this,'appear')">Appearance</button>
+      <button class="stab" data-tab="theme"    onclick="switchStab(this,'theme')">Theme</button>
+      <button class="stab" data-tab="typo"     onclick="switchStab(this,'typo')">Typography</button>
       <button class="stab" data-tab="atlas"    onclick="switchStab(this,'atlas')">Atlas</button>
     </div>
 
-    <!-- Tab panels -->
-    <div style="padding:22px 24px;overflow-y:auto;max-height:68vh">
+    <div style="padding:20px 24px;overflow-y:auto;max-height:65vh">
 
-      <!-- ── WRITING ── -->
+      <!-- Writing -->
       <div class="spanel" id="sp-writing" style="display:none">
-        <div style="margin-bottom:22px">
-          <p class="shead">Word Goal</p>
-          <label>Daily target (0 = off)</label>
-          <input class="fi" id="s-wg" type="number" min="0" placeholder="500">
-        </div>
-        <div style="margin-bottom:22px">
-          <p class="shead">Auto-Commit</p>
-          <label>Push to GitHub every (minutes, 0 = off)</label>
-          <input class="fi" id="s-ac-mins" type="number" min="0" max="120" placeholder="15">
-          <p style="font-size:11px;color:var(--fg3);margin-top:-8px">Queued annotations are sent after each commit.</p>
-        </div>
-        <div>
-          <p class="shead">Spellcheck</p>
-          <label>Language</label>
-          <select class="fi" id="s-lang-sel" onchange="setLangFromSel()">
-            <option value="0">English (EN)</option>
-            <option value="1">German (DE)</option>
-            <option value="2">English + German</option>
-          </select>
-        </div>
+        <label>Daily word goal <span style="color:var(--fg3);font-weight:400">(0 = off)</span></label>
+        <input class="fi" id="s-wg" type="number" min="0" placeholder="500">
+        <label>Auto-commit every <span style="color:var(--fg3);font-weight:400">(minutes, 0 = off)</span></label>
+        <input class="fi" id="s-ac-mins" type="number" min="0" max="120" placeholder="15">
+        <label>Spellcheck language</label>
+        <select class="fi" id="s-lang-sel" onchange="setLangFromSel()">
+          <option value="0">English</option>
+          <option value="1">German</option>
+          <option value="2">English + German</option>
+        </select>
       </div>
 
-      <!-- ── GITHUB ── -->
+      <!-- GitHub -->
       <div class="spanel" id="sp-github" style="display:none">
         <div id="gh-step-tok">
-          <p class="shead">Connect</p>
           <label>Personal Access Token</label>
           <div style="display:flex;gap:8px">
             <input class="fi" id="s-gh-tok" type="password" placeholder="ghp_… (needs repo scope)" style="margin-bottom:0;flex:1">
             <button class="btn" style="flex-shrink:0" onclick="ghConnect()">Connect</button>
           </div>
-          <p style="font-size:11px;color:var(--fg3);margin-top:6px">Create at <a href="https://github.com/settings/tokens/new?scopes=repo" target="_blank" style="color:var(--accent)">github.com/settings/tokens/new</a> — tick <strong>repo</strong>.</p>
+          <p style="font-size:11px;color:var(--fg3);margin-top:6px;margin-bottom:0">Create at <a href="https://github.com/settings/tokens/new?scopes=repo" target="_blank" style="color:var(--accent)">github.com/settings/tokens/new</a> — tick <strong>repo</strong>.</p>
         </div>
-        <div id="gh-step-repo" style="display:none;margin-top:16px">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <div id="gh-step-repo" style="display:none;margin-top:14px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
             <span id="gh-user-badge" style="font-size:12px;color:#4ade80">✓ Connected</span>
             <button onclick="ghDisconnect()" style="background:none;border:none;color:var(--fg3);cursor:pointer;font-size:11px;padding:0;font-family:var(--font)">disconnect</button>
           </div>
           <label>Repository</label>
           <div style="display:flex;gap:8px;margin-bottom:8px">
-            <select class="fi" id="s-gh-repo-sel" style="margin-bottom:0;flex:1" onchange="ghPickRepo()">
-              <option value="">— choose —</option>
-            </select>
+            <select class="fi" id="s-gh-repo-sel" style="margin-bottom:0;flex:1" onchange="ghPickRepo()"><option value="">— choose —</option></select>
             <button class="btn btn-g" style="flex-shrink:0;font-size:12px" onclick="ghLoadRepos()" title="Refresh">↻</button>
           </div>
           <div id="gh-step-branch" style="display:none">
             <label>Branch</label>
-            <select class="fi" id="s-gh-branch-sel" style="margin-bottom:8px" onchange="ghPickBranch()">
-              <option value="">— choose —</option>
-            </select>
+            <select class="fi" id="s-gh-branch-sel" style="margin-bottom:8px" onchange="ghPickBranch()"><option value="">— choose —</option></select>
           </div>
           <div id="gh-step-file" style="display:none">
-            <label>File <span style="font-weight:400;font-size:10px;color:var(--fg3)">(or type new path)</span></label>
+            <label>File</label>
             <select class="fi" id="s-gh-file-sel" style="margin-bottom:6px" onchange="ghPickFile()">
               <option value="">— choose —</option>
               <option value="__new__">+ New file…</option>
             </select>
             <input class="fi" id="s-gh-path" placeholder="e.g. writing/chapter-1.md" style="display:none">
-            <div id="gh-summary" style="display:none;background:rgba(128,128,128,.07);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--fg2);line-height:1.6"></div>
+            <div id="gh-summary" style="display:none;background:rgba(128,128,128,.07);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--fg2);line-height:1.6;margin-top:4px"></div>
           </div>
           <input type="hidden" id="s-gh-repo">
           <input type="hidden" id="s-gh-branch">
         </div>
       </div>
 
-      <!-- ── APPEARANCE ── -->
-      <div class="spanel" id="sp-appear" style="display:none">
-        <div style="margin-bottom:24px">
-          <p class="shead">Theme</p>
-          <div class="th-grid" id="th-grid-s"></div>
-        </div>
-        <div style="margin-bottom:22px">
-          <p class="shead">Typography</p>
-          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
-            <label style="margin:0">Font size</label>
-            <span id="s-sz-val" style="font-size:12px;color:var(--fg2)">21px</span>
-          </div>
-          <input type="range" id="s-sz" min="14" max="32" step="1" value="21" oninput="liveTypo()" style="width:100%;margin-bottom:16px;accent-color:var(--accent)">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
-            <label style="margin:0">Line width</label>
-            <span id="s-lw-val" style="font-size:12px;color:var(--fg2)">680px</span>
-          </div>
-          <input type="range" id="s-lw" min="400" max="960" step="20" value="680" oninput="liveTypo()" style="width:100%;margin-bottom:4px;accent-color:var(--accent)">
-          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--fg3)"><span>narrow</span><span>wide</span></div>
-        </div>
+      <!-- Theme -->
+      <div class="spanel" id="sp-theme" style="display:none">
+        <div class="th-grid" id="th-grid-s" style="margin-bottom:0"></div>
       </div>
 
-      <!-- ── ATLAS ── -->
+      <!-- Typography -->
+      <div class="spanel" id="sp-typo" style="display:none">
+        <label style="display:flex;justify-content:space-between;text-transform:none;letter-spacing:0;font-size:13px;font-weight:600;color:var(--fg);margin-bottom:8px">
+          Font size <span id="s-sz-val" style="font-weight:400;color:var(--fg2)">21px</span>
+        </label>
+        <input type="range" id="s-sz" min="14" max="32" step="1" value="21" oninput="liveTypo()" style="width:100%;margin-bottom:20px;accent-color:var(--accent)">
+        <label style="display:flex;justify-content:space-between;text-transform:none;letter-spacing:0;font-size:13px;font-weight:600;color:var(--fg);margin-bottom:8px">
+          Line width <span id="s-lw-val" style="font-weight:400;color:var(--fg2)">680px</span>
+        </label>
+        <input type="range" id="s-lw" min="400" max="960" step="20" value="680" oninput="liveTypo()" style="width:100%;margin-bottom:4px;accent-color:var(--accent)">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--fg3)"><span>narrow</span><span>wide</span></div>
+      </div>
+
+      <!-- Atlas -->
       <div class="spanel" id="sp-atlas" style="display:none">
-        <p class="shead">Telegram</p>
-        <p style="font-size:12px;color:var(--fg2);margin-bottom:14px">Annotations are sent to Atlas after each commit — with document context and commit SHA so Atlas can fetch the exact version and pass it to Quill for review.</p>
-        <label>Bot Token</label>
+        <label>Telegram Bot Token</label>
         <input class="fi" id="s-tg-tok" type="password" placeholder="bot token">
-        <label>Chat ID</label>
+        <label>Telegram Chat ID</label>
         <input class="fi" id="s-tg-chat" placeholder="7700527888">
+        <p style="font-size:11px;color:var(--fg3);margin-top:-6px">Annotations are dispatched to Atlas via Telegram after each commit, with full document context and commit SHA.</p>
       </div>
 
-    </div><!-- /panel body -->
+    </div>
 
-    <div class="brow" style="padding:0 24px 20px;border-top:1px solid var(--fg3);padding-top:16px;margin-top:0">
+    <div style="display:flex;gap:8px;padding:14px 24px;border-top:1px solid var(--fg3)">
       <button class="btn" onclick="saveSettings()">Save</button>
       <button class="btn btn-g" onclick="closeMo('mo-settings')">Cancel</button>
     </div>
@@ -1154,7 +1133,7 @@ function openSettings(tab){
   const panel=document.getElementById('sp-'+targetTab);
   if(tabEl) tabEl.classList.add('active');
   if(panel) panel.style.display='block';
-  if(targetTab==='appear') renderThemeGrid('th-grid-s');
+  if(targetTab==='theme') renderThemeGrid('th-grid-s');
   openMo('mo-settings');
 }
 function commitNow(){closeMo('mo-ann');syncToGH(false);}
@@ -1803,7 +1782,7 @@ function switchStab(el,tab){
   el.classList.add('active');
   const panel=document.getElementById('sp-'+tab);
   if(panel) panel.style.display='block';
-  if(tab==='appear') renderThemeGrid('th-grid-s');
+  if(tab==='theme') renderThemeGrid('th-grid-s');
 }
 function setLangFromSel(){
   langIdx=parseInt(document.getElementById('s-lang-sel').value)||0;
@@ -2126,7 +2105,7 @@ function setTheme(id){
 }
 function openThemePicker(){
   // Open settings on Appearance tab instead of separate modal
-  openSettings('appear');
+  openSettings('theme');
 }
 function renderThemeGrid(targetId){
   const id=targetId||'th-grid';
