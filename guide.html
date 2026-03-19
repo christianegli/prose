@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prose — Quick Guide</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--fg2:#6b6b6b;--fg3:#ccc;--accent:#6b48ff;--green:#059669;--font:'Courier New',Georgia,serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:16px;line-height:1.7}
+.page{max-width:700px;margin:0 auto;padding:60px 24px 100px}
+h1{font-size:1.6em;font-weight:700;margin-bottom:8px}
+.sub{color:var(--fg2);font-size:14px;margin-bottom:56px}
+.section{margin-bottom:72px}
+.section h2{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--fg2);margin-bottom:24px}
+/* step */
+.step{display:flex;gap:24px;margin-bottom:40px;align-items:flex-start}
+.step-num{flex-shrink:0;width:28px;height:28px;border-radius:50%;background:var(--fg);color:var(--bg);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:3px}
+.step-body h3{font-size:15px;font-weight:700;margin-bottom:6px}
+.step-body p{font-size:14px;color:var(--fg2);line-height:1.6;margin-bottom:10px}
+/* mock UI */
+.mock{border:1px solid var(--fg3);border-radius:10px;overflow:hidden;margin-top:12px;font-size:13px}
+.mock-bar{background:#f5f5f5;padding:8px 14px;border-bottom:1px solid var(--fg3);font-size:11px;color:#999;display:flex;gap:8px;align-items:center}
+.mock-dot{width:8px;height:8px;border-radius:50%}
+.mock-body{padding:16px 20px;line-height:1.7;color:#333}
+.mock-field{background:#fafafa;border:1px solid var(--fg3);border-radius:6px;padding:8px 12px;font-size:13px;color:#555;margin-bottom:8px;font-family:var(--font)}
+.mock-field.focus{border-color:var(--accent);background:#fff}
+.mock-label{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#999;margin-bottom:3px}
+.mock-btn{display:inline-block;background:var(--fg);color:var(--bg);border-radius:5px;padding:6px 14px;font-size:12px;cursor:default;margin-right:6px}
+.mock-btn.g{background:transparent;color:#555;border:1px solid var(--fg3)}
+.hl{background:rgba(255,210,60,.35);border-radius:2px;padding:1px 2px}
+.hl.atlas{background:rgba(52,211,153,.3)}
+.pop{display:inline-block;background:#fff;border:1px solid var(--fg3);border-radius:7px;padding:8px 12px;font-size:12px;box-shadow:0 4px 16px rgba(0,0,0,.1);margin-left:8px;vertical-align:middle;color:#333}
+.badge{display:inline-block;background:rgba(52,211,153,.15);color:var(--green);font-size:10px;padding:2px 8px;border-radius:20px;border:1px solid rgba(52,211,153,.3)}
+.kbd{display:inline-block;background:#f0f0f0;border:1px solid #ddd;border-radius:4px;padding:1px 7px;font-size:11px;font-family:monospace;color:#333}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px}
+.dot.ok{background:#4ade80}
+.dot.dirty{background:#fbbf24}
+.status-bar{display:flex;align-items:center;gap:12px;font-size:11px;color:#aaa;padding:8px 14px;border-top:1px solid var(--fg3)}
+/* animated cursor */
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.cursor{display:inline-block;width:2px;height:1em;background:var(--fg);vertical-align:text-bottom;animation:blink 1.2s infinite}
+/* annotation panel */
+.ap{border-left:3px solid rgba(52,211,153,.5);padding:10px 14px;background:rgba(52,211,153,.04);border-radius:0 6px 6px 0;margin-top:10px}
+.ap-q{font-style:italic;color:#888;font-size:12px;margin-bottom:3px}
+.ap-n{font-size:13px;color:#333}
+.ap-m{font-size:10px;color:#aaa;margin-top:4px}
+/* shortcut table */
+.kb{width:100%;border-collapse:collapse;font-size:13px}
+.kb tr{border-bottom:1px solid #f0f0f0}
+.kb td{padding:8px 4px}
+.kb td:first-child{width:160px;font-family:monospace;color:var(--accent)}
+/* divider */
+hr{border:none;border-top:1px solid #f0f0f0;margin:56px 0}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>Prose</h1>
+  <p class="sub">A two-minute guide to GitHub sync and annotations</p>
+
+  <!-- SECTION 1 -->
+  <div class="section">
+    <h2>1 — Connect to GitHub</h2>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h3>Open Settings</h3>
+        <p>Press <kbd class="kbd">⌘ ,</kbd> (or use the Command Palette <kbd class="kbd">⌘ K</kbd> → "Settings"). The settings panel slides open.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h3>Enter your GitHub credentials</h3>
+        <p>You need a GitHub Personal Access Token with <strong>repo</strong> scope. Create one at <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a>.</p>
+        <div class="mock">
+          <div class="mock-bar"><div class="mock-dot" style="background:#ff5f57"></div><div class="mock-dot" style="background:#febc2e"></div><div class="mock-dot" style="background:#28c840"></div><span style="margin-left:8px">Settings</span></div>
+          <div class="mock-body">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#aaa;margin-bottom:14px">GitHub Sync</div>
+            <div class="mock-label">Personal Access Token</div>
+            <div class="mock-field focus">ghp_••••••••••••••••••••••</div>
+            <div class="mock-label">Repository (owner/repo)</div>
+            <div class="mock-field">christianegli/my-writing</div>
+            <div class="mock-label">File path</div>
+            <div class="mock-field">notes/prose.md</div>
+            <div class="mock-label">Branch</div>
+            <div class="mock-field">main</div>
+            <div style="margin-top:4px"><span class="mock-btn">Save</span><span class="mock-btn g">Cancel</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h3>Sync your document</h3>
+        <p><kbd class="kbd">⌘ ⇧ S</kbd> pushes your document to GitHub. The dot in the bottom-right corner shows the sync state:</p>
+        <div style="display:flex;gap:24px;font-size:13px;color:var(--fg2);margin-top:8px;flex-wrap:wrap">
+          <div><span class="dot ok"></span> Synced</div>
+          <div><span class="dot dirty"></span> Local changes (not yet pushed)</div>
+          <div><span class="dot" style="background:#f87171"></span> Error (check token/repo)</div>
+        </div>
+        <p style="margin-top:12px">To pull the latest version from GitHub: <kbd class="kbd">⌘ ⇧ P</kbd></p>
+      </div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- SECTION 2 -->
+  <div class="section">
+    <h2>2 — Annotations</h2>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h3>Select text and annotate</h3>
+        <p>Highlight any text in your document, then press <kbd class="kbd">⌘ ⇧ A</kbd>. The annotation modal appears.</p>
+        <div class="mock" style="margin-top:12px">
+          <div class="mock-bar"><div class="mock-dot" style="background:#ff5f57"></div><div class="mock-dot" style="background:#febc2e"></div><div class="mock-dot" style="background:#28c840"></div></div>
+          <div class="mock-body" style="font-size:15px;line-height:1.9;color:#1a1a1a">
+            The problem with comfort is not that it feels good — it is that it <span class="hl">quietly removes the need to think</span>.<span class="cursor"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h3>Write your note</h3>
+        <p>Type your annotation in the modal. You can assign it to Atlas for review — Atlas will receive it via Telegram and can respond with feedback.</p>
+        <div class="mock">
+          <div class="mock-bar"><div class="mock-dot" style="background:#ff5f57"></div><div class="mock-dot" style="background:#febc2e"></div><div class="mock-dot" style="background:#28c840"></div><span style="margin-left:8px">Add Annotation</span></div>
+          <div class="mock-body">
+            <div style="font-style:italic;color:#888;font-size:13px;margin-bottom:14px">"quietly removes the need to think"</div>
+            <div class="mock-label">Note</div>
+            <div class="mock-field focus" style="min-height:60px">This is the thesis sentence — does it land, or is it too abstract?</div>
+            <div style="display:flex;align-items:center;gap:8px;margin:10px 0 4px">
+              <input type="checkbox" checked style="accent-color:#059669;width:14px;height:14px">
+              <span style="font-size:13px;color:#666">🦉 Assign to Atlas for review</span>
+            </div>
+            <div style="margin-top:12px">
+              <span class="mock-btn">Save annotation</span>
+              <span class="mock-btn" style="background:#059669">🦉 Send to Atlas</span>
+              <span class="mock-btn g">Cancel</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h3>The highlight appears inline</h3>
+        <p>Annotated text gets a subtle highlight. Yellow = your note. Green = assigned to Atlas. Hover to see the note in a popover.</p>
+        <div class="mock">
+          <div class="mock-bar"><div class="mock-dot" style="background:#ff5f57"></div><div class="mock-dot" style="background:#febc2e"></div><div class="mock-dot" style="background:#28c840"></div></div>
+          <div class="mock-body" style="font-size:15px;line-height:1.9">
+            The problem with comfort is not that it feels good — it is that it <span class="hl atlas">quietly removes the need to think</span>.
+            <span class="pop">This is the thesis sentence — does it land?<br><span style="font-size:10px;color:#059669">🦉 Atlas</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h3>Atlas responds via Telegram</h3>
+        <p>When you send an annotation to Atlas, it arrives as a Telegram message with the quoted text and your note. Atlas can reply directly.</p>
+        <div class="mock">
+          <div class="mock-bar" style="background:#1a1a1a;color:#888;border-color:#333">
+            <span>📱 Telegram</span>
+          </div>
+          <div class="mock-body" style="background:#0d0d0d;color:#e0e0e0;font-size:13px;line-height:1.65">
+            <div style="background:#1a1a2e;border-radius:8px;padding:12px 14px;border-left:3px solid #059669">
+              <div style="font-size:10px;font-weight:700;color:#059669;margin-bottom:8px">📝 ANNOTATION FROM PROSE</div>
+              <div style="color:#aaa;font-size:11px;margin-bottom:4px">Document: The Last Purchase</div>
+              <div style="font-style:italic;color:#888;font-size:12px;margin-bottom:8px">"quietly removes the need to think"</div>
+              <div style="color:#e0e0e0">This is the thesis sentence — does it land, or is it too abstract?</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <h3>Review all annotations</h3>
+        <p>Press <kbd class="kbd">⌘ ⇧ I</kbd> to open the annotations panel. All notes for the current document are listed. You can delete or send any annotation to Atlas from here.</p>
+        <div class="mock">
+          <div class="mock-bar"><div class="mock-dot" style="background:#ff5f57"></div><div class="mock-dot" style="background:#febc2e"></div><div class="mock-dot" style="background:#28c840"></div><span style="margin-left:8px">Annotations</span></div>
+          <div class="mock-body">
+            <div class="ap">
+              <div class="ap-q">"quietly removes the need to think"</div>
+              <div class="ap-n">This is the thesis sentence — does it land, or is it too abstract?</div>
+              <div class="ap-m">Today · <span class="badge">🦉 Atlas</span></div>
+            </div>
+            <div class="ap" style="margin-top:8px;border-color:rgba(107,72,255,.4);background:rgba(107,72,255,.03)">
+              <div class="ap-q">"140 years of forgotten infrastructure"</div>
+              <div class="ap-n">Good framing — use this earlier in the chapter.</div>
+              <div class="ap-m">Yesterday</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- SECTION 3: shortcuts -->
+  <div class="section">
+    <h2>3 — Key shortcuts</h2>
+    <table class="kb">
+      <tr><td>⌘ S</td><td>Save locally</td></tr>
+      <tr><td>⌘ ⇧ S</td><td>Push to GitHub</td></tr>
+      <tr><td>⌘ ⇧ P</td><td>Pull from GitHub</td></tr>
+      <tr><td>⌘ P</td><td>Toggle preview</td></tr>
+      <tr><td>⌘ F</td><td>Focus mode (dims everything except current paragraph)</td></tr>
+      <tr><td>⌘ ⇧ A</td><td>Annotate selected text</td></tr>
+      <tr><td>⌘ ⇧ I</td><td>Annotations panel</td></tr>
+      <tr><td>⌘ K</td><td>Command palette</td></tr>
+      <tr><td>⌘ E</td><td>Export (copy MD, copy HTML, download)</td></tr>
+      <tr><td>⌘ ,</td><td>Settings</td></tr>
+      <tr><td>⌘ N</td><td>New document</td></tr>
+      <tr><td>⌘ O</td><td>Open saved document</td></tr>
+    </table>
+  </div>
+
+  <div style="font-size:12px;color:var(--fg3);padding-top:12px">
+    Prose — <a href="/prose/prose.html">Open editor</a>
+  </div>
+
+</div>
+</body>
+</html>

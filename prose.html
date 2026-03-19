@@ -115,6 +115,24 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:transparent;border-radius:2px}
 *:hover::-webkit-scrollbar-thumb{background:rgba(128,128,128,.25)}
+/* floating toolbar */
+#ftb{
+  position:fixed;z-index:800;
+  display:flex;align-items:center;gap:1px;
+  background:var(--bg);border:1px solid var(--fg3);
+  border-radius:8px;padding:4px 5px;
+  box-shadow:0 4px 20px rgba(0,0,0,.1);
+  opacity:0;pointer-events:none;
+  transition:opacity .12s ease,transform .12s ease;
+  transform:translateY(4px);
+  white-space:nowrap;
+}
+#ftb.show{opacity:1;pointer-events:auto;transform:translateY(0)}
+.fb{background:none;border:none;cursor:pointer;border-radius:5px;padding:4px 7px;color:var(--fg2);font-size:13px;font-family:var(--font);line-height:1;transition:background .1s,color .1s}
+.fb:hover{background:rgba(128,128,128,.1);color:var(--fg)}
+.fb-bold{font-weight:700}
+.fb-it{font-style:italic}
+.fb-sep{width:1px;height:16px;background:var(--fg3);margin:0 3px;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -220,6 +238,24 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
     <button onclick="toggleAP()" style="background:none;border:none;color:var(--fg3);cursor:pointer;font-size:16px;padding:2px 8px;border-radius:4px">✕</button>
   </div>
   <div id="ap-list"></div>
+</div>
+
+<!-- Floating format toolbar -->
+<div id="ftb">
+  <button class="fb fb-bold" onclick="ftbWrap('**','**')" title="Bold (⌘B)"><b>B</b></button>
+  <button class="fb fb-it"   onclick="ftbWrap('*','*')"   title="Italic (⌘I)"><i>I</i></button>
+  <button class="fb"         onclick="ftbWrap('~~','~~')" title="Strikethrough"><s style="font-size:12px">S</s></button>
+  <button class="fb"         onclick="ftbWrap('`','`')"   title="Code"><span style="font-family:monospace;font-size:12px">`c`</span></button>
+  <div class="fb-sep"></div>
+  <button class="fb" onclick="ftbHead(1)" title="Heading 1" style="font-size:12px;font-weight:700">H1</button>
+  <button class="fb" onclick="ftbHead(2)" title="Heading 2" style="font-size:11px;font-weight:700">H2</button>
+  <button class="fb" onclick="ftbHead(3)" title="Heading 3" style="font-size:11px">H3</button>
+  <div class="fb-sep"></div>
+  <button class="fb" onclick="ftbLine('> ')"  title="Blockquote" style="font-size:14px">"</button>
+  <button class="fb" onclick="ftbLine('- ')"  title="List item"  style="font-size:16px;line-height:1">·</button>
+  <button class="fb" onclick="ftbLink()"      title="Link"       style="font-size:12px">⌘K</button>
+  <div class="fb-sep"></div>
+  <button class="fb" onclick="openAnnotate();hideFtb()" title="Annotate selection (⌘⇧A)" style="font-size:12px">✎</button>
 </div>
 
 <!-- Popover -->
@@ -833,6 +869,81 @@ function showAnnotationDetail(a,e){
 }
 function hidePopover(){hidePop()}
 function hidePop(){document.getElementById('pop').style.display='none'}
+
+/* ── FLOATING TOOLBAR ── */
+const ftb=document.getElementById('ftb');
+let ftbTimer=null;
+
+function showFtb(){
+  const s=ta.selectionStart,e=ta.selectionEnd;
+  if(s===e){hideFtb();return;}
+  // Position above the selection using a range on a mirror element
+  const rect=ta.getBoundingClientRect();
+  // Approximate position: use mouse coords stored on last mouseup
+  const x=Math.min(_ftbX,window.innerWidth-220);
+  const y=_ftbY-10;
+  ftb.style.left=Math.max(8,x-ftb.offsetWidth/2)+'px';
+  ftb.style.top=(y-44)+'px';
+  ftb.classList.add('show');
+}
+function hideFtb(){ftb.classList.remove('show')}
+
+let _ftbX=0,_ftbY=0;
+ta.addEventListener('mouseup',e=>{
+  _ftbX=e.clientX; _ftbY=e.clientY;
+  clearTimeout(ftbTimer);
+  ftbTimer=setTimeout(showFtb,60);
+});
+ta.addEventListener('keyup',e=>{
+  if(e.shiftKey){
+    clearTimeout(ftbTimer);
+    // estimate toolbar at middle of textarea for keyboard selections
+    const r=ta.getBoundingClientRect();
+    _ftbX=r.left+r.width/2; _ftbY=r.top+r.height/2;
+    ftbTimer=setTimeout(showFtb,80);
+  } else {
+    hideFtb();
+  }
+});
+ta.addEventListener('mousedown',()=>hideFtb());
+document.addEventListener('selectionchange',()=>{
+  if(document.activeElement!==ta)hideFtb();
+});
+
+function ftbWrap(before,after){
+  wrapSel(before,after);
+  hideFtb();
+  ta.focus();
+}
+function ftbHead(level){
+  const s=ta.selectionStart;
+  const lineStart=ta.value.lastIndexOf('\n',s-1)+1;
+  const prefix='#'.repeat(level)+' ';
+  // remove existing heading prefix if any
+  const existing=ta.value.substring(lineStart,lineStart+10).match(/^#+\s/);
+  if(existing){
+    ta.setRangeText('',lineStart,lineStart+existing[0].length,'end');
+  }
+  ta.setRangeText(prefix,lineStart,lineStart,'end');
+  ta.dispatchEvent(new Event('input'));
+  hideFtb(); ta.focus();
+}
+function ftbLine(prefix){
+  const s=ta.selectionStart;
+  const lineStart=ta.value.lastIndexOf('\n',s-1)+1;
+  ta.setRangeText(prefix,lineStart,lineStart,'end');
+  ta.dispatchEvent(new Event('input'));
+  hideFtb(); ta.focus();
+}
+function ftbLink(){
+  const s=ta.selectionStart,e=ta.selectionEnd;
+  const sel=ta.value.substring(s,e)||'link text';
+  const url=prompt('URL:','https://');
+  if(!url)return;
+  ta.setRangeText(`[${sel}](${url})`,s,e,'end');
+  ta.dispatchEvent(new Event('input'));
+  hideFtb(); ta.focus();
+}
 
 /* ── THEME ── */
 function applyTheme(){document.documentElement.setAttribute('data-theme',S.dark?'dark':'');}
