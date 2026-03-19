@@ -295,38 +295,83 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
 
 <!-- Settings -->
 <div class="mo" id="mo-settings" onclick="moOut(event,'mo-settings')">
-  <div class="mbox">
+  <div class="mbox" style="width:540px">
     <h3>Settings</h3>
-    <div style="margin-bottom:22px">
+
+    <!-- GitHub — stepped onboarding -->
+    <div style="margin-bottom:24px">
       <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--fg2);margin-bottom:14px">GitHub Sync</p>
-      <label>Personal Access Token</label>
-      <input class="fi" id="s-gh-tok" type="password" placeholder="ghp_…">
-      <label>Repository (owner/repo)</label>
-      <input class="fi" id="s-gh-repo" placeholder="username/my-notes">
-      <label>File path</label>
-      <input class="fi" id="s-gh-path" placeholder="writing/notes.md">
-      <label>Branch</label>
-      <input class="fi" id="s-gh-branch" placeholder="main">
+
+      <!-- Step 1: token -->
+      <div id="gh-step-tok">
+        <label>Personal Access Token</label>
+        <div style="display:flex;gap:8px">
+          <input class="fi" id="s-gh-tok" type="password" placeholder="ghp_… (needs repo scope)" style="margin-bottom:0;flex:1">
+          <button class="btn" style="flex-shrink:0;white-space:nowrap" onclick="ghConnect()">Connect</button>
+        </div>
+        <p style="font-size:11px;color:var(--fg3);margin-top:6px">Create one at <a href="https://github.com/settings/tokens/new?scopes=repo" target="_blank" style="color:var(--accent)">github.com/settings/tokens/new</a> — tick <strong>repo</strong> scope.</p>
+      </div>
+
+      <!-- Step 2: repo picker (hidden until connected) -->
+      <div id="gh-step-repo" style="display:none;margin-top:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span id="gh-user-badge" style="font-size:12px;color:var(--green)">✓ Connected</span>
+          <button onclick="ghDisconnect()" style="background:none;border:none;color:var(--fg3);cursor:pointer;font-size:11px;padding:0;font-family:var(--font)">disconnect</button>
+        </div>
+        <label>Repository</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <select class="fi" id="s-gh-repo-sel" style="margin-bottom:0;flex:1" onchange="ghPickRepo()">
+            <option value="">— choose a repo —</option>
+          </select>
+          <button class="btn btn-g" style="flex-shrink:0;font-size:12px" onclick="ghLoadRepos()" title="Refresh repos">↻</button>
+        </div>
+        <div id="gh-step-branch" style="display:none">
+          <label>Branch</label>
+          <select class="fi" id="s-gh-branch-sel" style="margin-bottom:8px" onchange="ghPickBranch()">
+            <option value="">— choose a branch —</option>
+          </select>
+        </div>
+        <div id="gh-step-file" style="display:none">
+          <label>File <span style="font-weight:400;font-size:10px;color:var(--fg3)">(or type a new path)</span></label>
+          <div style="display:flex;gap:8px;margin-bottom:4px">
+            <select class="fi" id="s-gh-file-sel" style="margin-bottom:0;flex:1" onchange="ghPickFile()">
+              <option value="">— choose a file —</option>
+              <option value="__new__">+ New file…</option>
+            </select>
+          </div>
+          <input class="fi" id="s-gh-path" placeholder="e.g. writing/chapter-1.md" style="display:none">
+          <!-- summary chip -->
+          <div id="gh-summary" style="display:none;margin-top:8px;background:rgba(128,128,128,.07);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--fg2);line-height:1.6"></div>
+        </div>
+        <!-- hidden input kept for compat -->
+        <input type="hidden" id="s-gh-repo">
+        <input type="hidden" id="s-gh-branch">
+      </div>
     </div>
+
+    <!-- Writing Goals -->
     <div style="margin-bottom:22px">
       <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--fg2);margin-bottom:14px">Writing Goals</p>
       <label>Daily word goal (0 = off)</label>
       <input class="fi" id="s-wg" type="number" min="0" placeholder="500">
     </div>
+
+    <!-- Auto-Commit -->
     <div style="margin-bottom:22px">
       <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--fg2);margin-bottom:14px">Auto-Commit</p>
-      <p style="font-size:12px;color:var(--fg2);margin-bottom:12px">Automatically push to GitHub while writing. Annotations queue and are dispatched only after a commit.</p>
       <label>Auto-commit every (minutes, 0 = off)</label>
       <input class="fi" id="s-ac-mins" type="number" min="0" max="120" placeholder="15">
     </div>
+
+    <!-- Atlas -->
     <div style="margin-bottom:22px">
       <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--fg2);margin-bottom:14px">Atlas Integration</p>
-      <p style="font-size:12px;color:var(--fg2);margin-bottom:12px">Annotations are sent to Atlas after each commit, with full document context and SHA so Atlas can fetch the exact version via GitHub and pass it to Quill.</p>
       <label>Telegram Bot Token</label>
       <input class="fi" id="s-tg-tok" type="password" placeholder="bot token">
       <label>Telegram Chat ID</label>
       <input class="fi" id="s-tg-chat" placeholder="7700527888">
     </div>
+
     <div class="brow">
       <button class="btn" onclick="saveSettings()">Save</button>
       <button class="btn btn-g" onclick="closeMo('mo-settings')">Cancel</button>
@@ -454,9 +499,15 @@ function loadCfg(){
 }
 function saveSettings(){
   S.cfg.ghTok=document.getElementById('s-gh-tok').value.trim();
-  S.cfg.ghRepo=document.getElementById('s-gh-repo').value.trim();
-  S.cfg.ghPath=document.getElementById('s-gh-path').value.trim();
-  S.cfg.ghBranch=document.getElementById('s-gh-branch').value.trim()||'main';
+  // prefer select values, fall back to hidden inputs
+  const repoSel=document.getElementById('s-gh-repo-sel');
+  const branchSel=document.getElementById('s-gh-branch-sel');
+  const fileSel=document.getElementById('s-gh-file-sel');
+  S.cfg.ghRepo=(repoSel&&repoSel.value)||document.getElementById('s-gh-repo').value.trim();
+  S.cfg.ghBranch=(branchSel&&branchSel.value)||document.getElementById('s-gh-branch').value.trim()||'main';
+  const manualPath=document.getElementById('s-gh-path').value.trim();
+  const selPath=(fileSel&&fileSel.value!=='__new__'&&fileSel.value)||'';
+  S.cfg.ghPath=manualPath||selPath;
   S.cfg.wordGoal=parseInt(document.getElementById('s-wg').value)||0;
   S.cfg.autoCommitMins=parseInt(document.getElementById('s-ac-mins').value)||0;
   S.cfg.tgTok=document.getElementById('s-tg-tok').value.trim();
@@ -888,14 +939,20 @@ function dlFile(content,type,name){
 
 /* ── SETTINGS ── */
 function openSettings(){
-  document.getElementById('s-gh-tok').value=S.cfg.ghTok;
-  document.getElementById('s-gh-repo').value=S.cfg.ghRepo;
-  document.getElementById('s-gh-path').value=S.cfg.ghPath;
-  document.getElementById('s-gh-branch').value=S.cfg.ghBranch;
+  document.getElementById('s-gh-tok').value=S.cfg.ghTok||'';
+  document.getElementById('s-gh-repo').value=S.cfg.ghRepo||'';
+  document.getElementById('s-gh-branch').value=S.cfg.ghBranch||'main';
+  document.getElementById('s-gh-path').value=S.cfg.ghPath||'';
   document.getElementById('s-wg').value=S.cfg.wordGoal||0;
   document.getElementById('s-ac-mins').value=S.cfg.autoCommitMins||0;
-  document.getElementById('s-tg-tok').value=S.cfg.tgTok;
-  document.getElementById('s-tg-chat').value=S.cfg.tgChat;
+  document.getElementById('s-tg-tok').value=S.cfg.tgTok||'';
+  document.getElementById('s-tg-chat').value=S.cfg.tgChat||'';
+  // Restore connected state
+  if(S.cfg.ghTok){
+    document.getElementById('gh-step-repo').style.display='block';
+    document.getElementById('gh-user-badge').textContent='✓ Connected';
+    ghLoadRepos(S.cfg.ghTok);
+  }
   openMo('mo-settings');
 }
 function commitNow(){closeMo('mo-ann');syncToGH(false);}
@@ -1390,6 +1447,106 @@ function renderStats(){
     <div class="stat-row"><span class="stat-label">Links</span><span class="stat-val">${links}</span></div>
     <div class="stat-row"><span class="stat-label">Code blocks</span><span class="stat-val">${codeBlocks + inlineCode}</span></div>
   `;
+}
+
+/* ── GITHUB ONBOARDING ── */
+async function ghConnect(){
+  const tok=document.getElementById('s-gh-tok').value.trim();
+  if(!tok){toast('Paste your token first');return;}
+  const btn=document.querySelector('#gh-step-tok .btn');
+  btn.textContent='Checking…'; btn.disabled=true;
+  try{
+    const r=await fetch('https://api.github.com/user',{headers:{'Authorization':'token '+tok,'Accept':'application/vnd.github.v3+json'}});
+    if(!r.ok) throw new Error('Invalid token ('+r.status+')');
+    const u=await r.json();
+    document.getElementById('gh-user-badge').textContent='✓ '+u.login;
+    document.getElementById('gh-step-repo').style.display='block';
+    ghLoadRepos(tok);
+  }catch(e){
+    toast('Token error: '+e.message);
+  } finally {
+    btn.textContent='Connect'; btn.disabled=false;
+  }
+}
+async function ghLoadRepos(tok){
+  tok=tok||document.getElementById('s-gh-tok').value.trim();
+  if(!tok)return;
+  const sel=document.getElementById('s-gh-repo-sel');
+  sel.innerHTML='<option>Loading…</option>';
+  try{
+    // fetch up to 3 pages of repos
+    let repos=[], page=1, more=true;
+    while(more&&page<=3){
+      const r=await fetch(`https://api.github.com/user/repos?per_page=100&page=${page}&sort=updated`,{headers:{'Authorization':'token '+tok,'Accept':'application/vnd.github.v3+json'}});
+      const data=await r.json();
+      if(!Array.isArray(data)||data.length===0){more=false;}
+      else{repos=[...repos,...data]; page++;}
+    }
+    sel.innerHTML='<option value="">— choose a repo —</option>'+repos.map(r=>`<option value="${r.full_name}"${r.full_name===S.cfg.ghRepo?' selected':''}>${r.full_name}${r.private?' 🔒':''}</option>`).join('');
+    if(S.cfg.ghRepo){ghPickRepo();}
+  }catch(e){sel.innerHTML='<option>Error loading repos</option>';}
+}
+async function ghPickRepo(){
+  const repo=document.getElementById('s-gh-repo-sel').value;
+  if(!repo)return;
+  document.getElementById('s-gh-repo').value=repo;
+  const tok=document.getElementById('s-gh-tok').value.trim();
+  // load branches
+  const bsel=document.getElementById('s-gh-branch-sel');
+  document.getElementById('gh-step-branch').style.display='block';
+  bsel.innerHTML='<option>Loading…</option>';
+  try{
+    const r=await fetch(`https://api.github.com/repos/${repo}/branches?per_page=50`,{headers:{'Authorization':'token '+tok,'Accept':'application/vnd.github.v3+json'}});
+    const data=await r.json();
+    const cur=S.cfg.ghBranch||'main';
+    bsel.innerHTML='<option value="">— choose a branch —</option>'+data.map(b=>`<option value="${b.name}"${b.name===cur?' selected':''}>${b.name}</option>`).join('');
+    if(S.cfg.ghBranch) ghPickBranch();
+  }catch(e){bsel.innerHTML='<option>Error</option>';}
+}
+async function ghPickBranch(){
+  const branch=document.getElementById('s-gh-branch-sel').value;
+  if(!branch)return;
+  document.getElementById('s-gh-branch').value=branch;
+  const tok=document.getElementById('s-gh-tok').value.trim();
+  const repo=document.getElementById('s-gh-repo-sel').value||document.getElementById('s-gh-repo').value;
+  // load files
+  document.getElementById('gh-step-file').style.display='block';
+  const fsel=document.getElementById('s-gh-file-sel');
+  fsel.innerHTML='<option>Loading…</option>';
+  try{
+    const r=await fetch(`https://api.github.com/repos/${repo}/git/trees/${branch}?recursive=1`,{headers:{'Authorization':'token '+tok,'Accept':'application/vnd.github.v3+json'}});
+    const data=await r.json();
+    const files=(data.tree||[]).filter(f=>f.type==='blob'&&/\.(md|txt|markdown)$/i.test(f.path));
+    fsel.innerHTML='<option value="">— choose a file —</option>'+files.map(f=>`<option value="${f.path}"${f.path===S.cfg.ghPath?' selected':''}>${f.path}</option>`).join('')+'<option value="__new__">+ New file…</option>';
+    if(S.cfg.ghPath) ghPickFile();
+  }catch(e){fsel.innerHTML='<option value="__new__">+ New file…</option>';}
+}
+function ghPickFile(){
+  const val=document.getElementById('s-gh-file-sel').value;
+  const manual=document.getElementById('s-gh-path');
+  if(val==='__new__'){
+    manual.style.display='block'; manual.focus();
+    document.getElementById('gh-summary').style.display='none';
+  } else if(val){
+    manual.style.display='none';
+    manual.value=val;
+    ghShowSummary();
+  }
+}
+function ghShowSummary(){
+  const repo=document.getElementById('s-gh-repo-sel').value||document.getElementById('s-gh-repo').value;
+  const branch=document.getElementById('s-gh-branch-sel').value||document.getElementById('s-gh-branch').value;
+  const path=document.getElementById('s-gh-path').value||document.getElementById('s-gh-file-sel').value;
+  const el=document.getElementById('gh-summary');
+  if(!repo||!path){el.style.display='none';return;}
+  el.style.display='block';
+  el.innerHTML=`📁 <strong>${repo}</strong> · ${branch||'main'} · <code style="font-size:11px">${path}</code>`;
+}
+function ghDisconnect(){
+  document.getElementById('s-gh-tok').value='';
+  document.getElementById('gh-step-repo').style.display='none';
+  document.getElementById('gh-step-branch').style.display='none';
+  document.getElementById('gh-step-file').style.display='none';
 }
 
 /* ── FULLSCREEN ── */
