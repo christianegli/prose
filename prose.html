@@ -1614,18 +1614,28 @@ function toggleFBDir(el){
   fbCollapsed[key]=!fbCollapsed[key];
   const collapsed=fbCollapsed[key];
   el.classList.toggle('collapsed',collapsed);
-  grpEl.classList.toggle('collapsed',collapsed);
-  if(!collapsed){
-    // recalc heights all the way up so parents expand correctly
-    grpEl.style.maxHeight=grpEl.scrollHeight+'px';
-    let p=grpEl.parentElement;
-    while(p&&p.id!=='fb-tree'){
-      if(p.classList.contains('fbi-group'))
-        p.style.maxHeight=p.scrollHeight+'px';
-      p=p.parentElement;
-    }
-  } else {
+  if(collapsed){
     grpEl.style.maxHeight='0';
+    grpEl.classList.add('collapsed');
+  } else {
+    // Remove collapse class first so children are visible, then measure
+    grpEl.classList.remove('collapsed');
+    grpEl.style.maxHeight='none'; // let it expand fully
+    requestAnimationFrame(()=>{
+      const h=grpEl.scrollHeight;
+      grpEl.style.maxHeight='0';
+      // Force reflow then animate to real height
+      grpEl.offsetHeight; // eslint-disable-line
+      grpEl.style.maxHeight=h+'px';
+      // Bubble up: expand parent groups if needed
+      let p=grpEl.parentElement;
+      while(p&&p.id!=='fb-tree'){
+        if(p.classList.contains('fbi-group')&&!p.classList.contains('collapsed')){
+          p.style.maxHeight=p.scrollHeight+h+'px';
+        }
+        p=p.parentElement;
+      }
+    });
   }
 }
 async function fbOpenFile(path){
