@@ -311,6 +311,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(
 <div class="mo" id="mo-export" onclick="moOut(event,'mo-export')">
   <div class="mbox">
     <h3>Export</h3>
+    <button class="eo" onclick="doExport('print')" style="border-color:var(--accent);color:var(--accent);font-weight:600">⬇ Print / Save as PDF</button>
     <button class="eo" onclick="doExport('copy-md')">Copy Markdown</button>
     <button class="eo" onclick="doExport('copy-html')">Copy HTML</button>
     <button class="eo" onclick="doExport('dl-md')">Download .md file</button>
@@ -1096,7 +1097,27 @@ function doExport(mode){
   else if(mode==='copy-html'){navigator.clipboard.writeText(mdToHtml(md));toast('HTML copied');}
   else if(mode==='dl-md'){dlFile(md,'text/markdown',title+'.md');}
   else if(mode==='dl-html'){dlFile(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${esc(docTitle(md))}</title></head><body style="max-width:680px;margin:60px auto;font-family:Georgia,serif;font-size:20px;line-height:1.9;color:#1a1a1a;padding:0 24px">${mdToHtml(md)}</body></html>`,'text/html',title+'.html');}
+  else if(mode==='print'){openPrintExport();}
   closeMo('mo-export');
+}
+function openPrintExport(){
+  // Build a print job from current Prose document
+  const doc=S.docs.find(d=>d.id===S.cur)||{};
+  const md=ta.value||'';
+  const title=docTitle(md);
+  const job={
+    title,
+    author:'',
+    genre:'',
+    chapters:[{
+      title,
+      chapterLabel:'',
+      number:false,
+      content:md
+    }]
+  };
+  localStorage.setItem('inkwell_print_job',JSON.stringify(job));
+  window.open('/prose/print.html','_blank');
 }
 function dlFile(content,type,name){
   const a=document.createElement('a');
